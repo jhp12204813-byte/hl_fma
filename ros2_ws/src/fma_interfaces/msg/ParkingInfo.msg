@@ -1,0 +1,6 @@
+std_msgs/Header header
+bool valid
+float32 front_clearance_m
+float32 rear_clearance_m
+float32 left_clearance_m
+float32 right_clearance_m
