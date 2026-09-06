@@ -19,5 +19,6 @@ setup(
     tests_require=['pytest'],
     entry_points={'console_scripts': [
         'stm32_bridge_node = fma_vehicle.stm32_bridge_node:main',
+        'vehicle_controller = fma_vehicle.vehicle_controller_node:main',
     ]},
 )
