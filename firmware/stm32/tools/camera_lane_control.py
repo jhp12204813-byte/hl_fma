@@ -18,10 +18,6 @@ MANUAL_COMMANDS = {
     ord("x"): b"X",
     ord("0"): b"X",
     ord(" "): b"X",
-    ord("7"): b"7",
-    ord("9"): b"9",
-    ord("1"): b"1",
-    ord("3"): b"3",
     ord("p"): b"P",
 }
 

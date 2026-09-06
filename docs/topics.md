@@ -114,7 +114,7 @@ settle that input-side contract.
 
 - `drive_state`: `0 = STOP`, `1 = FORWARD`, `2 = REVERSE`.
 - `steering_adc`: STM32 steering target raw ADC; current firmware accepts
-  `50..4040` inclusive.
+  `150..3950` inclusive.
 - `emergency_stop`: when true, the bridge must send `X` with priority over all
   other values and must not send forward, reverse, or steering commands.
 

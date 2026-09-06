@@ -21,9 +21,9 @@ from fma_interfaces.msg import DriveCommand, VehicleCommand
 class ConversionConfig:
     speed_deadband_mps: float = 0.01
     steering_calibration_enabled: bool = False
-    steering_right_adc: int = 50
-    steering_center_adc: int = 2182
-    steering_left_adc: int = 4040
+    steering_right_adc: int = 150
+    steering_center_adc: int = 2132
+    steering_left_adc: int = 3950
     steering_right_angle_rad: float = math.nan
     steering_left_angle_rad: float = math.nan
     steering_zero_tolerance_rad: float = 0.001
@@ -50,8 +50,8 @@ def validate_config(config):
     endpoints = (c.steering_right_adc, c.steering_center_adc, c.steering_left_adc)
     if any(type(value) is not int for value in endpoints):
         raise ValueError('ADC endpoints must be integers')
-    if not 50 <= endpoints[0] < endpoints[1] < endpoints[2] <= 4040:
-        raise ValueError('ADC endpoints must be ordered within 50..4040')
+    if not 150 <= endpoints[0] < endpoints[1] < endpoints[2] <= 3950:
+        raise ValueError('ADC endpoints must be ordered within 150..3950')
 
 
 def steering_angle_to_adc(angle_rad, config=ConversionConfig()):
@@ -76,7 +76,7 @@ def steering_angle_to_adc(angle_rad, config=ConversionConfig()):
     else:
         fraction = min(angle_rad / c.steering_left_angle_rad, 1.0)
         target = c.steering_center_adc + fraction * (c.steering_left_adc - c.steering_center_adc)
-    return max(50, min(4040, round(target)))
+    return max(150, min(3950, round(target)))
 
 
 class VehicleControllerNode(Node):

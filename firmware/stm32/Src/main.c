@@ -5,11 +5,13 @@
 #define UART_BAUDRATE         115200U
 #define PWM_PERIOD            799U       /* 16 MHz / 800 = 20 kHz */
 #define DRIVE_PWM             240U       /* 30% */
-#define STEERING_PWM          400U       /* 50% */
-#define STEERING_LEFT_TARGET  4040U      /* measured end: 4093 */
-#define STEERING_CENTER       2182U
-#define STEERING_RIGHT_TARGET 50U        /* measured end: 4 */
+#define STEERING_PWM          520U       /* 65% */
+#define STEERING_LEFT_TARGET  3950U      /* physical end: approximately 4095 */
+#define STEERING_CENTER       2132U
+#define STEERING_RIGHT_TARGET 150U       /* physical end: approximately 7 */
 #define STEERING_DEADBAND     50U
+#define STEERING_PACKET_TIMEOUT_MS 50U
+#define UART_RX_CAPACITY     64U
 #define COMMAND_TIMEOUT_MS    700U
 #define SPEED_REPORT_MS       200U
 #define WHEEL_CIRCUM_MM_X10   8800U      /* approximately 880.0 mm */
@@ -29,7 +31,22 @@ static uint32_t last_drive_command_ms = 0U;
 static uint32_t last_steering_command_ms = 0U;
 static uint8_t steering_active = 0U;
 static int32_t current_speed_mm_s = 0;
+typedef enum { PARSER_IDLE, PARSER_STEERING } parser_state_t;
+static parser_state_t parser_state = PARSER_IDLE;
+static uint32_t steering_packet_last_ms = 0U;
 static uint8_t steering_packet_digits = 0U;
+
+typedef struct
+{
+  char value;
+  uint32_t received_ms;
+} rx_byte_t;
+
+/* ISR producer, main-loop consumer; one unused slot distinguishes full/empty. */
+static volatile rx_byte_t rx_buffer[UART_RX_CAPACITY];
+static volatile uint32_t rx_head = 0U;
+static volatile uint32_t rx_tail = 0U;
+static volatile uint8_t rx_fault = 0U;
 static uint16_t steering_packet_value = 0U;
 
 static void short_delay(volatile uint32_t count)
@@ -123,14 +140,69 @@ static void uart2_print_int(int32_t value)
   }
 }
 
-static int uart2_try_getchar(char *value)
+/* SR then DR read clears RXNE and ORE/FE/NE/PE on STM32F401. No TX in ISR. */
+void USART2_IRQHandler(void)
 {
-  if ((USART2->SR & USART_SR_RXNE) == 0U)
+  uint32_t status = USART2->SR;
+  if ((status & (USART_SR_RXNE | USART_SR_ORE | USART_SR_FE |
+                 USART_SR_NE | USART_SR_PE)) != 0U)
   {
-    return 0;
+    char value = (char)(USART2->DR & 0xFFU);
+    uint32_t next = (rx_head + 1U) % UART_RX_CAPACITY;
+    if ((status & (USART_SR_ORE | USART_SR_FE | USART_SR_NE | USART_SR_PE)) != 0U)
+    {
+      rx_fault = 1U;
+    }
+    else if (rx_fault == 0U)
+    {
+      if (next == rx_tail)
+      {
+        rx_fault = 1U;
+      }
+      else
+      {
+        rx_buffer[rx_head].value = value;
+        rx_buffer[rx_head].received_ms = g_millis;
+        __DMB();
+        rx_head = next;
+      }
+    }
   }
-  *value = (char)(USART2->DR & 0xFFU);
-  return 1;
+}
+
+static void uart2_rx_start(void)
+{
+  /* Enable only after PWM, ADC, timebase and watchdog are ready. */
+  (void)USART2->SR;
+  (void)USART2->DR;
+  NVIC_SetPriority(USART2_IRQn, 1U);
+  NVIC_ClearPendingIRQ(USART2_IRQn);
+  USART2->CR3 |= USART_CR3_EIE;
+  USART2->CR1 |= USART_CR1_RXNEIE | USART_CR1_PEIE;
+  NVIC_EnableIRQ(USART2_IRQn);
+}
+
+static int uart2_try_getchar(rx_byte_t *item)
+{
+  /* Only the small queue operation masks interrupts, never command execution. */
+  uint32_t primask = __get_PRIMASK();
+  int result = 0;
+  __disable_irq();
+  if (rx_fault != 0U)
+  {
+    rx_tail = rx_head; /* discard the whole potentially corrupted backlog */
+    rx_fault = 0U;
+    result = -1;
+  }
+  else if (rx_tail != rx_head)
+  {
+    item->value = rx_buffer[rx_tail].value;
+    item->received_ms = rx_buffer[rx_tail].received_ms;
+    rx_tail = (rx_tail + 1U) % UART_RX_CAPACITY;
+    result = 1;
+  }
+  __set_PRIMASK(primask);
+  return result;
 }
 
 static void gpio_and_pwm_init(void)
@@ -297,6 +369,37 @@ static void steering_update(uint16_t position)
   }
 }
 
+static void parser_reset(void)
+{
+  parser_state = PARSER_IDLE;
+  steering_packet_digits = 0U;
+  steering_packet_value = 0U;
+}
+
+static void command_fail_safe(void)
+{
+  /* No ADC conversion, direction-change delay, or blocking ACK on STOP. */
+  TIM2->CCR2 = 0U;
+  TIM3->CCR1 = 0U;
+  steering_stop();
+  TIM2->EGR = TIM_EGR_UG;
+  TIM3->EGR = TIM_EGR_UG;
+  drive_state = DRIVE_STOP;
+  steering_active = 0U;
+  parser_reset();
+}
+
+static int parser_check_timeout(uint32_t now_ms)
+{
+  if ((parser_state == PARSER_STEERING) &&
+      ((uint32_t)(now_ms - steering_packet_last_ms) >= STEERING_PACKET_TIMEOUT_MS))
+  {
+    command_fail_safe();
+    return 1;
+  }
+  return 0;
+}
+
 static void command_process(char command)
 {
   if ((command >= 'a') && (command <= 'z'))
@@ -309,77 +412,34 @@ static void command_process(char command)
     case 'W':
       drive_set(DRIVE_FORWARD);
       last_drive_command_ms = g_millis;
-      uart2_print("FORWARD\r\n");
       break;
     case 'S':
       drive_set(DRIVE_REVERSE);
       last_drive_command_ms = g_millis;
-      uart2_print("REVERSE\r\n");
       break;
     case 'A':
       steering_target = STEERING_LEFT_TARGET;
       steering_active = 1U;
       last_steering_command_ms = g_millis;
-      uart2_print("LEFT\r\n");
       break;
     case 'D':
       steering_target = STEERING_RIGHT_TARGET;
       steering_active = 1U;
       last_steering_command_ms = g_millis;
-      uart2_print("RIGHT\r\n");
       break;
     case 'C':
       steering_target = STEERING_CENTER;
       steering_active = 1U;
       last_steering_command_ms = g_millis;
-      uart2_print("CENTER\r\n");
       break;
     case 'H':
       steering_stop();
       steering_target = steering_adc_read();
       steering_active = 0U;
-      uart2_print("STEERING HOLD\r\n");
-      break;
-    case '7':
-      drive_set(DRIVE_FORWARD);
-      steering_target = STEERING_LEFT_TARGET;
-      steering_active = 1U;
-      last_drive_command_ms = g_millis;
-      last_steering_command_ms = g_millis;
-      uart2_print("FORWARD LEFT\r\n");
-      break;
-    case '9':
-      drive_set(DRIVE_FORWARD);
-      steering_target = STEERING_RIGHT_TARGET;
-      steering_active = 1U;
-      last_drive_command_ms = g_millis;
-      last_steering_command_ms = g_millis;
-      uart2_print("FORWARD RIGHT\r\n");
-      break;
-    case '1':
-      drive_set(DRIVE_REVERSE);
-      steering_target = STEERING_LEFT_TARGET;
-      steering_active = 1U;
-      last_drive_command_ms = g_millis;
-      last_steering_command_ms = g_millis;
-      uart2_print("REVERSE LEFT\r\n");
-      break;
-    case '3':
-      drive_set(DRIVE_REVERSE);
-      steering_target = STEERING_RIGHT_TARGET;
-      steering_active = 1U;
-      last_drive_command_ms = g_millis;
-      last_steering_command_ms = g_millis;
-      uart2_print("REVERSE RIGHT\r\n");
       break;
     case 'X':
-    case '0':
     case ' ':
-      drive_set(DRIVE_STOP);
-      steering_stop();
-      steering_target = steering_adc_read();
-      steering_active = 0U;
-      uart2_print("STOP\r\n");
+      command_fail_safe();
       break;
     case 'P':
       uart2_print("ENC=");
@@ -394,11 +454,7 @@ static void command_process(char command)
       uart2_print("\r\n");
       break;
     case 'Q':
-      drive_set(DRIVE_STOP);
-      steering_stop();
-      steering_target = steering_adc_read();
-      steering_active = 0U;
-      uart2_print("CONTROL ENDED\r\n");
+      command_fail_safe();
       break;
     default:
       return;
@@ -406,58 +462,95 @@ static void command_process(char command)
 
 }
 
-/* Camera controller packet: 'T' followed by exactly four decimal digits. */
-static void uart2_process_byte(char value)
+/* Only this state consumes digits. IDLE digits can never initiate motion. */
+static void uart2_process_byte(char value, uint32_t received_ms)
 {
-  if (steering_packet_digits != 0U)
+  if ((value == 'X') || (value == 'x'))
+  {
+    command_fail_safe(); /* preempts a partial T packet, even at timeout */
+    return;
+  }
+  if (parser_check_timeout(received_ms) != 0)
+  {
+    return; /* discard the byte following an expired partial packet */
+  }
+  if (parser_state == PARSER_STEERING)
   {
     if ((value < '0') || (value > '9'))
     {
-      steering_packet_digits = 0U;
-      steering_packet_value = 0U;
-      steering_stop();
-      steering_active = 0U;
+      command_fail_safe(); /* never reinterpret the offending byte as W/S */
       return;
     }
-
-    steering_packet_value = (uint16_t)((steering_packet_value * 10U) +
-                                       (uint16_t)(value - '0'));
-    steering_packet_digits--;
-
-    if (steering_packet_digits == 0U)
+    steering_packet_last_ms = received_ms;
+    steering_packet_value = (uint16_t)(steering_packet_value * 10U + (value - '0'));
+    steering_packet_digits++;
+    if (steering_packet_digits == 4U)
     {
       if ((steering_packet_value >= STEERING_RIGHT_TARGET) &&
           (steering_packet_value <= STEERING_LEFT_TARGET))
       {
         steering_target = steering_packet_value;
         steering_active = 1U;
-        last_steering_command_ms = g_millis;
+        last_steering_command_ms = received_ms;
+        parser_reset();
       }
       else
       {
-        steering_stop();
-        steering_active = 0U;
+        command_fail_safe();
       }
-      steering_packet_value = 0U;
     }
     return;
   }
-
-  if ((value == 'T') || (value == 't'))
+  if ((value >= '0') && (value <= '9'))
   {
-    steering_packet_digits = 4U;
-    steering_packet_value = 0U;
     return;
   }
-
+  if ((value == 'T') || (value == 't'))
+  {
+    parser_state = PARSER_STEERING;
+    steering_packet_digits = 0U;
+    steering_packet_value = 0U;
+    steering_packet_last_ms = received_ms;
+    /* Do not keep applying an old steering target during incomplete input. */
+    steering_stop();
+    steering_active = 0U;
+    return;
+  }
   command_process(value);
+}
+
+static void uart2_process_rx(void)
+{
+  rx_byte_t item;
+  int result;
+  /* Bounded work: UART flooding cannot starve watchdog or motion timeouts. */
+  for (uint32_t count = 0U; count < UART_RX_CAPACITY; count++)
+  {
+    result = uart2_try_getchar(&item);
+    if (result < 0)
+    {
+      command_fail_safe();
+      return;
+    }
+    if (result == 0)
+    {
+      /* Only use wall time after draining arrival-timestamped bytes. */
+      (void)parser_check_timeout(g_millis);
+      return;
+    }
+    if ((uint32_t)(g_millis - item.received_ms) >= STEERING_PACKET_TIMEOUT_MS)
+    {
+      command_fail_safe(); /* do not execute a stale queued motion command */
+      continue;
+    }
+    uart2_process_byte(item.value, item.received_ms);
+  }
 }
 
 int main(void)
 {
   uint32_t last_report_ms;
   uint16_t previous_encoder_count;
-  char command;
 
   uart2_init();
   gpio_and_pwm_init();
@@ -466,6 +559,7 @@ int main(void)
   steering_target = steering_adc_read(); /* do not move steering at boot */
   (void)SysTick_Config(HSI_CLOCK_HZ / 1000U);
   watchdog_init();
+  uart2_rx_start();
   last_report_ms = g_millis;
   previous_encoder_count = (uint16_t)TIM4->CNT;
 
@@ -476,10 +570,7 @@ int main(void)
   {
     uint16_t steering_position;
 
-    while (uart2_try_getchar(&command) != 0)
-    {
-      uart2_process_byte(command);
-    }
+    uart2_process_rx();
 
     steering_position = steering_adc_read();
     if (steering_active != 0U)

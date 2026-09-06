@@ -149,9 +149,16 @@ Output headers use current ROS publish time and an empty `frame_id`.
 `vehicle_controller` publishes the low-level `VehicleCommand` on
 `/vehicle/command`; `stm32_bridge_node` is its subscriber. Drive state is an enum
 (`0 = STOP`, `1 = FORWARD`, `2 = REVERSE`), and steering is a raw ADC target in
-the current firmware range `50..4040`. If `emergency_stop` is true, the bridge
+the current firmware range `150..3950`. If `emergency_stop` is true, the bridge
 must prioritize `X` and suppress forward, reverse, and steering commands.
 This does not imply a latched emergency feature in firmware.
+
+Measured physical steering ADC endpoints are approximately RIGHT=7 and LEFT=4095.
+Operational safe targets are RIGHT=150, CENTER=2132, LEFT=3950 (ADC increases left).
+Firmware steering PWM is 520/800 = 65%. Physical angle endpoints in radians are
+not measured; `vehicle_controller` retains disabled/NaN angle calibration and
+rejects nonzero angles until calibrated. These ADC limits do not change topics,
+message definitions, serial packet shape, or raw telemetry feedback.
 
 Current firmware has no numeric speed command. Physical steering-angle
 calibration is also incomplete. `VehicleCommand` therefore contains neither

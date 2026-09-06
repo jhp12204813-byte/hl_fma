@@ -41,8 +41,8 @@ DRIVE_PACKETS = {
     VehicleCommand.DRIVE_FORWARD: b'W',
     VehicleCommand.DRIVE_REVERSE: b'S',
 }
-STEERING_MIN_ADC = 50
-STEERING_MAX_ADC = 4040
+STEERING_MIN_ADC = 150
+STEERING_MAX_ADC = 3950
 
 
 class STM32BridgeNode(Node):
@@ -119,7 +119,7 @@ class STM32BridgeNode(Node):
             if msg.drive_state not in DRIVE_PACKETS:
                 self.warn('command', 'Invalid drive state; forcing STOP')
             elif not STEERING_MIN_ADC <= msg.steering_adc <= STEERING_MAX_ADC:
-                self.warn('command', 'Steering ADC outside 50..4040; forcing STOP')
+                self.warn('command', 'Steering ADC outside 150..3950; forcing STOP')
             else:
                 self.last_command = time.monotonic()
                 self.drive = DRIVE_PACKETS[msg.drive_state]
