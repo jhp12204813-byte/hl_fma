@@ -28,7 +28,7 @@ def test_invalid_speed(speed):
 
 @pytest.mark.parametrize('angle', [0.0, 0.001, -0.001])
 def test_uncalibrated_center(angle):
-    assert steering_angle_to_adc(angle) == 2182
+    assert steering_angle_to_adc(angle) == 2132
 
 
 @pytest.mark.parametrize('angle', [0.01, -0.01, math.nan, math.inf, -math.inf])
@@ -44,8 +44,8 @@ CALIBRATED = ConversionConfig(steering_calibration_enabled=True,
 
 
 @pytest.mark.parametrize('angle,adc', [
-    (-0.2, 50), (0.0, 2182), (0.6, 4040), (-0.1, 1116), (0.3, 3111),
-    (-1.0, 50), (1.0, 4040)])
+    (-0.2, 150), (0.0, 2132), (0.6, 3950), (-0.1, 1141), (0.3, 3041),
+    (-1.0, 150), (1.0, 3950)])
 def test_calibrated_mapping(angle, adc):
     assert steering_angle_to_adc(angle, CALIBRATED) == adc
 
@@ -60,8 +60,8 @@ def test_invalid_calibration(right, left):
 
 
 @pytest.mark.parametrize('changes', [
-    {'steering_right_adc': 49}, {'steering_left_adc': 4041},
-    {'steering_center_adc': 50}, {'steering_zero_tolerance_rad': math.nan},
+    {'steering_right_adc': 149}, {'steering_left_adc': 3951},
+    {'steering_center_adc': 150}, {'steering_zero_tolerance_rad': math.nan},
     {'speed_deadband_mps': -0.1}])
 def test_invalid_configuration(changes):
     with pytest.raises(ValueError):
@@ -111,7 +111,7 @@ def output(node):
 
 
 def assert_stop(msg):
-    assert (msg.drive_state, msg.steering_adc, msg.emergency_stop) == (0, 2182, True)
+    assert (msg.drive_state, msg.steering_adc, msg.emergency_stop) == (0, 2132, True)
 
 
 def test_node_topics_timer_and_header(node_factory):
@@ -122,7 +122,7 @@ def test_node_topics_timer_and_header(node_factory):
     assert node_factory.timer.call_args.kwargs['clock'].clock_type == ClockType.STEADY_TIME
     node.on_command(request())
     msg = output(node)
-    assert (msg.drive_state, msg.steering_adc, msg.emergency_stop) == (1, 2182, False)
+    assert (msg.drive_state, msg.steering_adc, msg.emergency_stop) == (1, 2132, False)
     assert msg.header.stamp == Time(sec=123, nanosec=456)
     assert msg.header.frame_id == ''
 

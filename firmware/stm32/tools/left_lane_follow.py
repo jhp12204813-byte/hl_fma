@@ -12,9 +12,9 @@ import numpy as np
 import serial
 
 
-STEERING_CENTER = 2182
-STEERING_MIN = 50
-STEERING_MAX = 4040
+STEERING_CENTER = 2132
+STEERING_MIN = 150
+STEERING_MAX = 3950
 CALIBRATION_FILE = Path(__file__).with_name("left_lane_80cm.json")
 
 

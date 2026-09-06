@@ -66,7 +66,7 @@ def env(monkeypatch):
         node.destroy_node()
 
 
-def command(state=VehicleCommand.DRIVE_FORWARD, adc=2182, emergency=False):
+def command(state=VehicleCommand.DRIVE_FORWARD, adc=2132, emergency=False):
     msg = VehicleCommand()
     msg.drive_state, msg.steering_adc, msg.emergency_stop = state, adc, emergency
     return msg
@@ -113,7 +113,7 @@ def test_drive_mapping(env, state, packet):
         assert set(packets(env)) == {b'X'}
 
 
-@pytest.mark.parametrize('adc,packet', [(2182, b'T2182'), (50, b'T0050'), (4040, b'T4040')])
+@pytest.mark.parametrize('adc,packet', [(2132, b'T2132'), (150, b'T0150'), (3950, b'T3950')])
 def test_steering_and_serialized_refresh(env, adc, packet):
     node = env.make()
     node.on_command(command(adc=adc))
@@ -125,8 +125,9 @@ def test_steering_and_serialized_refresh(env, adc, packet):
 
 
 @pytest.mark.parametrize('state,adc,emergency', [
-    (3, 2182, False), (255, 2182, False), (1, 49, False), (1, 4041, False),
-    (1, 2182, True), (2, 50, True), (255, 65535, True)])
+    (3, 2182, False), (255, 2182, False), (1, 149, False), (1, 3951, False),
+    (1, 7, False), (1, 4095, False), (1, 50, False), (1, 4040, False),
+    (1, 2182, True), (2, 150, True), (255, 65535, True)])
 def test_invalid_and_emergency_stop_only(env, state, adc, emergency):
     node = env.make()
     node.on_command(command())
@@ -254,3 +255,10 @@ def test_open_failure(env):
     node.on_command(command())
     node.poll()
     env.port.write.assert_not_called()
+
+
+@pytest.mark.parametrize('adc', [7, 50, 150, 2132, 3950, 4040, 4095])
+def test_telemetry_adc_is_not_limited_to_command_targets(adc):
+    # Measured feedback can be outside safe command limits and must remain visible.
+    assert bridge.parse_telemetry(f'ENC=0 SPEED=0mm/s STEER={adc} DRIVE=0') == (
+        0, 0.0, adc, 0)

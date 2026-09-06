@@ -18,7 +18,7 @@ ARROW_KEYS = {
     b"\x1b[D": b"A",
     b"\x1b[C": b"D",
 }
-VALID_KEYS = b"wWsSaAdDcCpPxX qQ01379"
+VALID_KEYS = b"wWsSaAdDcCpPxX qQ"
 
 
 def read_key(stdin_fd: int) -> bytes:
@@ -56,8 +56,7 @@ def main() -> int:
         board.write(b"X")
 
         print("W/Up=forward  S/Down=reverse  A/Left=left  D/Right=right")
-        print("7=forward-left  9=forward-right  1=reverse-left  3=reverse-right")
-        print("C=center  Space/X/0=STOP  P=status  Q=STOP and exit")
+        print("C=center  Space/X=STOP  P=status  Q=STOP and exit")
         print("Drive and steering stop within 0.7 s if key messages stop.")
         tty.setcbreak(stdin_fd)
 

@@ -19,15 +19,15 @@ PB6/PB7 입력은 내부 풀업이 활성화되어 있습니다. MCU 핀에 5 V 
 3. 프로젝트를 빌드한 뒤 ST-LINK로 실행합니다.
 4. ST-LINK Virtual COM 포트를 `115200, 8-N-1`로 엽니다.
 
-출력 예시는 `CNT = 123` 형식입니다. 회전 방향이 반대라면 PB6과 PB7을
+출력 예시는 `ENC=123 SPEED=0mm/s STEER=2132 DRIVE=0\r\n` 형식입니다. 회전 방향이 반대라면 PB6과 PB7을
 서로 바꾸거나 소프트웨어에서 카운트 부호를 반대로 처리하십시오.
 
 ## 키보드 명령
 
 | 키 | 동작 |
 |---|---|
-| W | 앞/뒤 구동모터 전진(10%) |
-| S | 앞/뒤 구동모터 후진(10%) |
+| W | 앞/뒤 구동모터 전진(30%) |
+| S | 앞/뒤 구동모터 후진(30%) |
 | A | 왼쪽 조향 |
 | D | 오른쪽 조향 |
 | C | 조향 중앙 복귀 |
@@ -84,7 +84,7 @@ cd /home/idp2/STM32Cube/Repository/STM32Cube_FW_F4_V1.28.0/Projects/STM32F401RE-
 1. 차량을 왼쪽 노란 차선에서 실제 80cm 떨어진 위치에 평행하게 놓습니다.
 2. 아래 명령으로 프로그램을 실행하고 초록색 검출선이 노란 차선과 일치하는지 확인합니다.
 3. `K`를 눌러 현재 위치를 80cm 기준으로 저장합니다.
-4. 바퀴를 띄운 시험 후 지면에서 `G`를 눌러 10% PWM 추종을 시작합니다.
+4. 바퀴를 띄운 시험 후 지면에서 `G`를 눌러 30% PWM 추종을 시작합니다.
 5. `X` 또는 Space를 누르면 즉시 정지합니다.
 
 ```bash
@@ -100,3 +100,63 @@ cd /home/idp2/STM32Cube/Repository/STM32Cube_FW_F4_V1.28.0/Projects/STM32F401RE-
 
 NUCLEO 펌웨어는 `Txxxx` 형식의 조향 목표값 명령을 처리하므로 수정된
 펌웨어를 다시 빌드하고 업로드해야 합니다.
+
+
+## Serial parser 안전 규칙
+
+- `W`/`S`는 구동, `X`는 구동·조향 정지, `Tdddd`는 조향 ADC target이다.
+  `P` telemetry 요청과 `A/D/C/H/Q`, Space 명령도 유지한다.
+- 숫자 shortcut `1/3/7/9` 및 `0` STOP alias는 제거했다. IDLE에서 모든
+  `0..9`를 무시하므로 `2182`, `2300`만 도착해도 동작을 시작하지 않는다.
+  키보드/카메라 도구의 숫자 구동 shortcut도 제거했다.
+- `T` 수신 시 기존 조향 출력을 끄고 payload 수집 상태로 전환한다.
+  decimal 4자리 완성 후 `150..3950` 범위일 때만 target을 적용한다.
+  범위 오류/non-digit는 구동·조향 STOP 및 IDLE reset으로 처리하며,
+  오류를 일으킨 문자를 새 구동 명령으로 재해석하지 않는다.
+- `STEERING_PACKET_TIMEOUT_MS=50` ms: 수신 바이트 사이 간격이 이 값 이상이면
+  불완전 payload를 폐기하고 구동·조향을 정지한다. 후속 바이트가 없어도
+  main loop가 timeout을 검사한다. `X/x`는 수집 중에도 즉시 STOP/abort한다.
+- 현재 실행 코드는 HAL UART가 아닌 CMSIS 레지스터 방식이다. 따라서
+  HAL UART/clock 초기화를 새로 도입하지 않고 `USART2_IRQHandler`에서
+  single-byte RX와 수신 시각을 64칸 ring buffer(사용 가능 63칸)에 저장한다.
+  main loop가 이를 파싱하며, UART TX 도중에도 RX 인터럽트는 활성 상태다.
+- ring overflow 또는 UART ORE/FE/NE/PE 발생 시 이후 수신을 폐기하고,
+  main loop가 fault를 감지하면 backlog 폐기, parser reset, 구동·조향 STOP을
+  수행한다. queue 조작만 짧게 interrupt mask하며 TX/명령 실행은 mask하지 않는다.
+  50 ms 이상 오래된 queue 항목도 실행하지 않고 STOP 처리한다.
+- 명령별 FORWARD/REVERSE/STOP 등 verbose ACK는 제거했다. 기존 도구와 ROS
+  bridge는 ACK를 기다리지 않는다. 5 Hz telemetry와 `P` 응답 형식은 유지한다:
+  `ENC=<signed_decimal> SPEED=<signed_decimal>mm/s STEER=<unsigned_decimal> DRIVE=<0|1|2>\r\n`.
+  부팅/700 ms timeout 안내는 유지한다. IWDG 및 독립 구동·조향 700 ms timeout도 유지한다.
+- 이 변경은 CRC/프레이밍을 추가하지 않는다. 모든 종류의 바이트 손상 검출이나
+  실제 하드웨어 동작을 보증하지 않으며 ROS bridge의 기존 분리 TX를 유지한다.
+
+### 하드웨어 없는 검증
+
+`python3 tools/test_command_parser.py`는 실제 `Src/main.c`를 가짜 레지스터와
+함께 호스트 C compiler로 컴파일하여 parser/ring-buffer 회귀 검증을 수행한다.
+serial 포트나 MCU에 접근하지 않는다. IRQ 타이밍과 물리 PWM 검증은 포함하지 않는다.
+
+Makefile의 기본 `FW_ROOT=../../..`는 원래 Cube 디렉터리 배치를 가정한다.
+현재 저장소에서 CMSIS/HAL headers를 찾지 못하면 설치된 Cube F4 경로를
+`make all FW_ROOT=<STM32Cube_FW_F4 경로> BUILD=/tmp/fma-stm32-build`로 지정할 수 있다.
+`all`은 빌드만 수행하며 `flash`는 별도 명령이다.
+
+
+## 실차 조향 ADC calibration
+
+사용자가 실차 측정·확인한 값이며, physical endpoint와 운용 target을 구분한다.
+
+| 구분 | RIGHT | CENTER | LEFT |
+|---|---:|---:|---:|
+| 물리 ADC 끝점 (근사) | 7 | — | 4095 |
+| 안전 운용 target | 150 | 2132 | 3950 |
+
+ADC 증가가 LEFT, 감소가 RIGHT이다. 중앙 2132는 직진으로 확인되었다.
+`Tdddd` 명령 허용 범위는 `150..3950`이며 물리 끝점 7/4095는 거부한다.
+`STEERING_PWM=520`, timer ARR(`PWM_PERIOD`)=799로 주기는 800 count,
+즉 duty는 `520/800=65%`이다.
+ROS vehicle_controller와 bridge 및 ADC target을 만드는 도구도 이 운용값을 사용한다.
+물리 조향각 rad 끝점은 미측정이므로 ROS angle calibration은 disabled/NaN을
+유지한다. REP-103 양의 각도=LEFT, 음의 각도=RIGHT이며, calibration 없이
+nonzero angle을 요청하면 기존 fail-safe STOP을 유지한다.
