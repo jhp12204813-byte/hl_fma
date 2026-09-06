@@ -1,137 +1,256 @@
-"""Hardware-free protocol and safety tests; no physical serial port is opened."""
+"""Real bridge callbacks with mocked ROS transport and serial; no DDS/hardware."""
 import math
-import unittest
-from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
-import rclpy
-from fma_interfaces.msg import DriveCommand
-from fma_vehicle.stm32_bridge_node import (
-    STM32BridgeNode, parse_telemetry, speed_to_drive, steering_to_adc)
-
-
-class ProtocolTests(unittest.TestCase):
-    def test_parser(self):
-        self.assertEqual(parse_telemetry('ENC=-123 SPEED=456mm/s STEER=2182 DRIVE=1'),
-                         (-123, 0.456, 2182, 1))
-        for line in ('FORWARD', 'ENC=1 SPEED=2 STEER=3 DRIVE=1',
-                     'ENC=1 SPEED=2mm/s STEER=65536 DRIVE=1',
-                     'ENC=1 SPEED=2mm/s STEER=3 DRIVE=3',
-                     'ENC=2147483648 SPEED=2mm/s STEER=3 DRIVE=1'):
-            with self.assertRaises(ValueError):
-                parse_telemetry(line)
-
-    def test_speed(self):
-        for speed, expected in ((1., b'W'), (.2, b'W'), (-1., b'S'), (.01, b'X')):
-            self.assertEqual(speed_to_drive(speed, .01), expected)
-        for speed in (math.nan, math.inf):
-            with self.assertRaises(ValueError):
-                speed_to_drive(speed, .01)
-
-    def test_steering(self):
-        # Synthetic endpoints for unit tests only, not vehicle calibration.
-        def adc(angle, enabled=True, right=-.4, left=.6):
-            return steering_to_adc(angle, enabled, right, left, 50, 2182, 4040, .001)
-        self.assertEqual(adc(0, False, math.nan, math.nan), 2182)
-        for args in ((.1, False), (0, True, math.nan, math.nan)):
-            with self.assertRaises(ValueError):
-                adc(*args)
-        self.assertEqual(adc(-.2), 1116)
-        self.assertEqual(adc(.3), 3111)
-        self.assertEqual(adc(-2), 50)
-        self.assertEqual(adc(2), 4040)
+import pytest
+from builtin_interfaces.msg import Time
+from fma_interfaces.msg import VehicleCommand, VehicleFeedback
+from rclpy.clock import ClockType
+from fma_vehicle import stm32_bridge_node as bridge
 
 
-class NodeTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        rclpy.init()
-
-    @classmethod
-    def tearDownClass(cls):
-        rclpy.shutdown()
-
-    def setUp(self):
-        self.port = MagicMock()
-        self.port.write.side_effect = lambda packet: len(packet)
-        self.port.in_waiting = 0
-        self.port.read.return_value = b''
-        self.mock_serial = patch('fma_vehicle.stm32_bridge_node.serial.Serial',
-                                 return_value=self.port)
-        self.mock_serial.start()
-        self.clock = patch('fma_vehicle.stm32_bridge_node.time.monotonic', return_value=100.)
-        self.now = self.clock.start()
-        self.node = STM32BridgeNode()
-
-    def tearDown(self):
-        self.node.destroy_node()
-        self.clock.stop()
-        self.mock_serial.stop()
-
-    def command(self, speed=1., angle=0., emergency=False):
-        msg = DriveCommand()
-        msg.speed_mps, msg.steering_angle_rad, msg.emergency_stop = speed, angle, emergency
-        self.node.on_command(msg)
-
-    def advance(self, now):
-        self.now.return_value = now
-        self.node.poll()
-
-    def test_tx_spacing_emergency_and_timeout(self):
-        self.command()
-        self.assertEqual(self.port.write.call_args.args, (b'W',))
-        self.advance(100.01)
-        self.assertEqual(self.port.write.call_count, 1)
-        self.advance(100.03)
-        self.assertEqual(self.port.write.call_args.args, (b'T2182',))
-        self.command(emergency=True)
-        self.advance(100.06)
-        self.assertEqual(self.port.write.call_args.args, (b'X',))
-        self.advance(100.3)
-        self.assertEqual(self.port.write.call_args.args, (b'X',))
-        self.command()
-        self.advance(100.51)
-        self.advance(100.81)
-        self.assertEqual(self.port.write.call_args.args, (b'X',))
-        self.assertTrue(all(c.args[0] in (b'W', b'X', b'T2182')
-                            for c in self.port.write.call_args_list))
-
-    def test_uncalibrated_stop(self):
-        self.command(angle=.1)
-        self.assertEqual(self.port.write.call_args.args, (b'X',))
-        self.advance(100.11)
-        self.assertEqual(self.port.write.call_count, 1)
-
-    def test_receive_only_and_fragmented_rx(self):
-        self.node.config['receive_only'] = True
-        self.node.publisher = MagicMock()
-        self.command()
-        self.port.in_waiting = 100
-        self.port.read.return_value = b'FORWARD\r\nENC=-123 SPEED=456mm/s STE'
-        self.advance(100.1)
-        self.node.publisher.publish.assert_not_called()
-        self.port.read.return_value = b'ER=2182 DRIVE=1\r\n'
-        self.advance(100.2)
-        msg = self.node.publisher.publish.call_args.args[0]
-        self.assertEqual(msg.encoder_count, -123)
-        self.assertAlmostEqual(msg.speed_mps, .456, places=6)
-        self.assertEqual((msg.steering_adc, msg.drive_state, msg.header.frame_id), (2182, 1, ''))
-        self.node.close_serial()
-        self.port.write.assert_not_called()
-
-    def test_disconnect(self):
-        self.port.read.side_effect = OSError('unplugged')
-        self.advance(100.)
-        self.assertFalse(self.node.connected)
-        self.assertIsNone(self.node.serial)
-        self.port.close.assert_called_once()
-
-    def test_open_failure(self):
-        self.node.destroy_node()
-        with patch('fma_vehicle.stm32_bridge_node.serial.Serial', side_effect=OSError('missing')):
-            self.node = STM32BridgeNode()
-        self.assertFalse(self.node.connected)
-        self.node.poll()
+@pytest.mark.parametrize('speed', [456, -456, 0])
+def test_parser(speed):
+    assert bridge.parse_telemetry(f'ENC=-123 SPEED={speed}mm/s STEER=2182 DRIVE=1') == (
+        -123, speed / 1000., 2182, 1)
 
 
-if __name__ == '__main__':
-    unittest.main()
+@pytest.mark.parametrize('line', [
+    'FORWARD', 'ENC=1 SPEED=2 STEER=3 DRIVE=1',
+    'ENC=1 SPEED=2mm/s STEER=65536 DRIVE=1',
+    'ENC=1 SPEED=2mm/s STEER=3 DRIVE=3',
+    'ENC=2147483648 SPEED=2mm/s STEER=3 DRIVE=1',
+    'ENC=1 SPEED=-2147483649mm/s STEER=3 DRIVE=1',
+    'ENC=1 SPEED=2mm/s STEER=3 DRIVE=1 extra',
+    ' ENC=1 SPEED=2mm/s STEER=3 DRIVE=1'])
+def test_parser_rejects(line):
+    with pytest.raises(ValueError):
+        bridge.parse_telemetry(line)
+
+
+@pytest.fixture
+def env(monkeypatch):
+    port = MagicMock()
+    port.write.side_effect = len
+    port.in_waiting = 0
+    port.read.return_value = b''
+    serial_factory = MagicMock(return_value=port)
+    publisher, subscriber, timer, logger, clock = [MagicMock() for _ in range(5)]
+    clock.now.return_value.to_msg.return_value = Time(sec=123, nanosec=456)
+    now, overrides, nodes = [100.0], {}, []
+    monkeypatch.setattr(bridge.Node, '__init__', lambda self, name: None)
+    monkeypatch.setattr(bridge.Node, 'destroy_node', lambda self: None)
+    monkeypatch.setattr(bridge.Node, 'declare_parameter',
+                        lambda self, name, value, descriptor:
+                        SimpleNamespace(value=overrides.get(name, value)))
+    monkeypatch.setattr(bridge.Node, 'create_publisher', publisher)
+    monkeypatch.setattr(bridge.Node, 'create_subscription', subscriber)
+    monkeypatch.setattr(bridge.Node, 'create_timer', timer)
+    monkeypatch.setattr(bridge.Node, 'get_logger', lambda self: logger)
+    monkeypatch.setattr(bridge.Node, 'get_clock', lambda self: clock)
+    monkeypatch.setattr(bridge.serial, 'Serial', serial_factory)
+    monkeypatch.setattr(bridge.time, 'monotonic', lambda: now[0])
+    monkeypatch.setattr(bridge.time, 'sleep', lambda seconds: None)
+
+    def make(**parameters):
+        overrides.update(parameters)
+        node = bridge.STM32BridgeNode()
+        nodes.append(node)
+        return node
+
+    yield SimpleNamespace(make=make, port=port, serial=serial_factory, now=now,
+                          publisher=publisher, subscriber=subscriber,
+                          timer=timer, logger=logger)
+    for node in nodes:
+        node.destroy_node()
+
+
+def command(state=VehicleCommand.DRIVE_FORWARD, adc=2182, emergency=False):
+    msg = VehicleCommand()
+    msg.drive_state, msg.steering_adc, msg.emergency_stop = state, adc, emergency
+    return msg
+
+
+def packets(env):
+    return [call.args[0] for call in env.port.write.call_args_list]
+
+
+def advance(env, node, now):
+    env.now[0] = now
+    node.poll()
+
+
+def test_topics_and_defaults(env):
+    node = env.make()
+    assert env.subscriber.call_args.args[:2] == (VehicleCommand, '/vehicle/command')
+    assert env.publisher.call_args.args[:2] == (VehicleFeedback, '/vehicle/feedback')
+    assert node.config['vehicle_command_timeout_sec'] == .5
+    assert (node.drive_period, node.steering_period) == (.2, .1)
+    assert env.timer.call_args.kwargs['clock'].clock_type == ClockType.STEADY_TIME
+    for removed in ('command_topic', 'ros_command_timeout_sec', 'speed_deadband_mps',
+                    'steering_calibration_enabled', 'steering_right_angle_rad',
+                    'steering_left_angle_rad', 'steering_zero_tolerance_rad'):
+        assert removed not in node.config
+
+
+def test_topic_parameters(env):
+    env.make(vehicle_command_topic='/test/command', feedback_topic='/test/feedback')
+    assert env.subscriber.call_args.args[1] == '/test/command'
+    assert env.publisher.call_args.args[1] == '/test/feedback'
+
+
+@pytest.mark.parametrize('state,packet', [(VehicleCommand.DRIVE_FORWARD, b'W'),
+                                         (VehicleCommand.DRIVE_REVERSE, b'S'),
+                                         (VehicleCommand.DRIVE_STOP, b'X')])
+def test_drive_mapping(env, state, packet):
+    node = env.make()
+    node.on_command(command(state))
+    assert packets(env) == [packet]
+    if state == VehicleCommand.DRIVE_STOP:
+        for now in (100.03, 100.21, 100.4):
+            advance(env, node, now)
+        assert set(packets(env)) == {b'X'}
+
+
+@pytest.mark.parametrize('adc,packet', [(2182, b'T2182'), (50, b'T0050'), (4040, b'T4040')])
+def test_steering_and_serialized_refresh(env, adc, packet):
+    node = env.make()
+    node.on_command(command(adc=adc))
+    advance(env, node, 100.01)
+    assert packets(env) == [b'W']
+    for now in (100.03, 100.14, 100.21):
+        advance(env, node, now)
+    assert packets(env) == [b'W', packet, packet, b'W']
+
+
+@pytest.mark.parametrize('state,adc,emergency', [
+    (3, 2182, False), (255, 2182, False), (1, 49, False), (1, 4041, False),
+    (1, 2182, True), (2, 50, True), (255, 65535, True)])
+def test_invalid_and_emergency_stop_only(env, state, adc, emergency):
+    node = env.make()
+    node.on_command(command())
+    env.port.write.reset_mock()
+    env.now[0] = 100.01
+    node.on_command(command(state, adc, emergency))
+    assert node.last_command == 100.0
+    for now in (100.03, 100.14, 100.25, 100.5):
+        advance(env, node, now)
+    assert packets(env) and set(packets(env)) == {b'X'}
+    assert node.steering is None
+
+
+def test_startup_timeout_and_recovery(env):
+    node = env.make()
+    node.poll()
+    assert packets(env) == [b'X']
+    env.now[0] = 100.21
+    node.on_command(command())
+    assert packets(env)[-1] == b'W'
+    advance(env, node, 100.709)
+    assert packets(env)[-1] != b'X'
+    advance(env, node, 100.74)
+    assert packets(env)[-1] == b'X'
+    env.port.write.reset_mock()
+    advance(env, node, 101.)
+    assert packets(env) == [b'X']
+    env.now[0] = 101.21
+    node.on_command(command(VehicleCommand.DRIVE_REVERSE))
+    assert packets(env)[-1] == b'S'
+
+
+@pytest.mark.parametrize('timeout', [.5, .25])
+def test_timeout_boundary(env, timeout):
+    node = env.make(vehicle_command_timeout_sec=timeout)
+    node.on_command(command())
+    advance(env, node, 100. + timeout)
+    assert packets(env) == [b'W', b'X']
+
+
+@pytest.mark.parametrize('timeout', [0., -1., math.nan, math.inf])
+def test_invalid_timeout(env, timeout):
+    with pytest.raises(ValueError):
+        env.make(vehicle_command_timeout_sec=timeout)
+    env.serial.assert_not_called()
+
+
+def test_receive_only_fragmented_rx_and_shutdown(env):
+    node = env.make(receive_only=True)
+    node.on_command(command())
+    env.port.in_waiting = 100
+    for raw in (b'FORWARD\r\nENC=-123 SPEED=456mm/s STE', b'ER=2182 DRIVE=1\r'):
+        env.port.read.return_value = raw
+        node.poll()
+        node.publisher.publish.assert_not_called()
+    env.port.read.return_value = b'\n'
+    node.poll()
+    msg = node.publisher.publish.call_args.args[0]
+    assert isinstance(msg, VehicleFeedback)
+    assert msg.encoder_count == -123
+    assert msg.speed_mps == pytest.approx(.456)
+    assert (msg.steering_adc, msg.drive_state, msg.header.frame_id) == (2182, 1, '')
+    assert msg.header.stamp == Time(sec=123, nanosec=456)
+    node.on_command(command(emergency=True))
+    advance(env, node, 101.)
+    node.destroy_node()
+    env.port.write.assert_not_called()
+
+
+def test_rx_strict_crlf_warning_throttle_and_status(env):
+    node = env.make(receive_only=True)
+    for raw in (b'ENC=1 SPEED=2mm/s STEER=3 DRIVE=1\n', b'ENC=bad\r\n', b'\xff\r\n'):
+        node.process_line(raw)
+    assert env.logger.warning.call_count == 1
+    node.publisher.publish.assert_not_called()
+    node.process_line(b'FORWARD\r\n')
+    env.logger.debug.assert_called_once()
+    env.now[0] = 105.
+    node.process_line(b'ENC=bad\r\n')
+    assert env.logger.warning.call_count == 2
+
+
+def test_oversized_rx_recovers(env):
+    node = env.make(receive_only=True)
+    env.port.in_waiting = 400
+    env.port.read.return_value = b'E' * 300
+    node.poll()
+    assert node.discard_line
+    env.port.read.return_value = b'junk\r\nENC=1 SPEED=-2mm/s STEER=3 DRIVE=2\r\n'
+    node.poll()
+    assert not node.discard_line
+    assert node.publisher.publish.call_args.args[0].speed_mps == pytest.approx(-.002)
+
+
+@pytest.mark.parametrize('receive_only', [False, True])
+def test_disconnect(env, receive_only):
+    node = env.make(receive_only=receive_only)
+    env.port.read.side_effect = OSError('unplugged')
+    node.poll()
+    assert not node.connected
+    assert node.serial is None
+    env.port.close.assert_called_once()
+    if receive_only:
+        env.port.write.assert_not_called()
+    env.port.write.reset_mock()
+    node.on_command(command())
+    node.poll()
+    env.port.write.assert_not_called()
+
+
+@pytest.mark.parametrize('partial', [False, True])
+def test_write_failure(env, partial):
+    node = env.make()
+    env.port.write.side_effect = (lambda packet: 0) if partial else OSError('unplugged')
+    node.on_command(command())
+    assert not node.connected
+    assert node.serial is None
+    env.port.close.assert_called_once()
+
+
+def test_open_failure(env):
+    env.serial.side_effect = OSError('missing')
+    node = env.make()
+    assert not node.connected
+    node.on_command(command())
+    node.poll()
+    env.port.write.assert_not_called()

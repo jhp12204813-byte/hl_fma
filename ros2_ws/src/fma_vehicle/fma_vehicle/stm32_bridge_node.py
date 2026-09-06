@@ -16,7 +16,7 @@ from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 import serial
 
-from fma_interfaces.msg import DriveCommand, VehicleFeedback
+from fma_interfaces.msg import VehicleCommand, VehicleFeedback
 
 
 TELEMETRY = re.compile(
@@ -36,28 +36,13 @@ def parse_telemetry(line):
     return encoder, speed / 1000.0, steering, drive
 
 
-def speed_to_drive(speed, deadband):
-    """Magnitude is ignored: 0.2 and 1.0 m/s both request fixed 30% forward."""
-    if not math.isfinite(speed) or not math.isfinite(deadband) or deadband < 0:
-        raise ValueError('invalid speed or deadband')
-    return b'W' if speed > deadband else b'S' if speed < -deadband else b'X'
-
-
-def steering_to_adc(angle, enabled, right_angle, left_angle,
-                    right_adc, center_adc, left_adc, tolerance):
-    """Use measured REP-103 endpoints only; otherwise allow center only."""
-    if not math.isfinite(angle):
-        raise ValueError('non-finite steering request')
-    if enabled and not (math.isfinite(right_angle) and right_angle < 0
-                        and math.isfinite(left_angle) and left_angle > 0):
-        raise ValueError('steering calibration endpoints are unconfigured/invalid')
-    if abs(angle) <= tolerance:
-        return center_adc
-    if not enabled:
-        raise ValueError('nonzero steering requires measured calibration; stopping')
-    if angle < 0:
-        return round(center_adc + min(angle / right_angle, 1.0) * (right_adc - center_adc))
-    return round(center_adc + min(angle / left_angle, 1.0) * (left_adc - center_adc))
+DRIVE_PACKETS = {
+    VehicleCommand.DRIVE_STOP: b'X',
+    VehicleCommand.DRIVE_FORWARD: b'W',
+    VehicleCommand.DRIVE_REVERSE: b'S',
+}
+STEERING_MIN_ADC = 50
+STEERING_MAX_ADC = 4040
 
 
 class STM32BridgeNode(Node):
@@ -67,14 +52,10 @@ class STM32BridgeNode(Node):
         super().__init__('stm32_bridge_node')
         defaults = {
             'port': '/dev/ttyACM0', 'baudrate': 115200,
-            'command_topic': '/cmd/final', 'feedback_topic': '/vehicle/feedback',
+            'vehicle_command_topic': '/vehicle/command',
+            'feedback_topic': '/vehicle/feedback',
             'drive_refresh_hz': 5.0, 'steering_refresh_hz': 10.0,
-            'ros_command_timeout_sec': 0.5, 'speed_deadband_mps': 0.01,
-            'steering_center_adc': 2182, 'steering_right_adc': 50,
-            'steering_left_adc': 4040, 'steering_calibration_enabled': False,
-            'steering_right_angle_rad': float('nan'),
-            'steering_left_angle_rad': float('nan'),
-            'steering_zero_tolerance_rad': 0.001, 'receive_only': False,
+            'vehicle_command_timeout_sec': 0.5, 'receive_only': False,
         }
         self.config = {}
         for name, value in defaults.items():
@@ -94,13 +75,10 @@ class STM32BridgeNode(Node):
         self.publisher = self.create_publisher(
             VehicleFeedback, self.config['feedback_topic'], 10)
         self.subscription = self.create_subscription(
-            DriveCommand, self.config['command_topic'], self.on_command, 1)
+            VehicleCommand, self.config['vehicle_command_topic'], self.on_command, 1)
         self.validate_config()
         self.drive_period = 1.0 / self.config['drive_refresh_hz']
         self.steering_period = 1.0 / self.config['steering_refresh_hz']
-        self.get_logger().warning(
-            'Speed magnitude is ignored: 0.2 and 1.0 m/s both mean fixed 30% '
-            'forward above deadband. No numeric speed control or latched emergency protocol.')
         try:
             self.serial = serial.Serial(
                 port=self.config['port'], baudrate=self.config['baudrate'],
@@ -121,16 +99,11 @@ class STM32BridgeNode(Node):
         for name in ('drive_refresh_hz', 'steering_refresh_hz'):
             if not math.isfinite(c[name]) or not 2.0 <= c[name] <= 20.0:
                 raise ValueError(f'{name} must be 2..20 Hz for 700 ms firmware timeout')
-        for name in ('speed_deadband_mps', 'steering_zero_tolerance_rad'):
-            if not math.isfinite(c[name]) or c[name] < 0:
-                raise ValueError(f'{name} must be finite and nonnegative')
-        if not math.isfinite(c['ros_command_timeout_sec']) or c['ros_command_timeout_sec'] <= 0:
-            raise ValueError('ros_command_timeout_sec must be finite and positive')
-        if not 50 <= c['steering_right_adc'] < c['steering_center_adc'] < c['steering_left_adc'] <= 4040:
-            raise ValueError('ADC endpoints must be ordered within firmware range 50..4040')
+        timeout = c['vehicle_command_timeout_sec']
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError('vehicle_command_timeout_sec must be finite and positive')
         if c['baudrate'] <= 0:
             raise ValueError('baudrate must be positive')
-        # Invalid enabled calibration is handled as STOP for every received command.
 
     def warn(self, key, message):
         now = time.monotonic()
@@ -139,21 +112,20 @@ class STM32BridgeNode(Node):
             self.warning_times[key] = now
 
     def on_command(self, msg):
-        self.last_command = time.monotonic()
         self.safe_stop = True
         self.drive, self.steering = b'X', None
+        # Emergency overrides even invalid fields; never retain a motion target.
         if not msg.emergency_stop:
-            c = self.config
-            try:
-                drive = speed_to_drive(msg.speed_mps, c['speed_deadband_mps'])
-                adc = steering_to_adc(
-                    msg.steering_angle_rad, c['steering_calibration_enabled'],
-                    c['steering_right_angle_rad'], c['steering_left_angle_rad'],
-                    c['steering_right_adc'], c['steering_center_adc'],
-                    c['steering_left_adc'], c['steering_zero_tolerance_rad'])
-                self.drive, self.steering, self.safe_stop = drive, adc, False
-            except ValueError as error:
-                self.warn('command', str(error))
+            if msg.drive_state not in DRIVE_PACKETS:
+                self.warn('command', 'Invalid drive state; forcing STOP')
+            elif not STEERING_MIN_ADC <= msg.steering_adc <= STEERING_MAX_ADC:
+                self.warn('command', 'Steering ADC outside 50..4040; forcing STOP')
+            else:
+                self.last_command = time.monotonic()
+                self.drive = DRIVE_PACKETS[msg.drive_state]
+                self.safe_stop = self.drive == b'X'
+                if not self.safe_stop:
+                    self.steering = msg.steering_adc
         if self.safe_stop:
             self.next_drive = 0.0
         self.transmit(time.monotonic())
@@ -162,7 +134,7 @@ class STM32BridgeNode(Node):
         if self.config['receive_only'] or not self.connected:
             return
         stale = (self.last_command is None or
-                 now - self.last_command >= self.config['ros_command_timeout_sec'])
+                 now - self.last_command >= self.config['vehicle_command_timeout_sec'])
         stopped = self.safe_stop or stale
         if stopped and not self.was_stopped:
             self.next_drive = 0.0
