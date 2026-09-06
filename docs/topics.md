@@ -86,18 +86,50 @@ settle that input-side contract.
 | `/cmd/mission` | `fma_interfaces/msg/DriveCommand` | Active mission node | `command_arbiter` | Speed: m/s; steering: rad | TBD | Mission-specific command candidate | FIXED |
 | `/cmd/emergency` | `fma_interfaces/msg/DriveCommand` | `safety_manager` | `command_arbiter` | Speed: m/s; steering: rad | TBD | Highest-priority safety command candidate | FIXED |
 | `/cmd/final` | `fma_interfaces/msg/DriveCommand` | `command_arbiter` | `vehicle_controller` | Speed: m/s; steering: rad | TBD | The only selected command sent into vehicle control | FIXED |
+| `/vehicle/command` | `fma_interfaces/msg/VehicleCommand` | `vehicle_controller` | `stm32_bridge_node` | Drive state: enum; steering: raw ADC; emergency: bool | TBD | Low-level vehicle command after speed/steering conversion | FIXED |
 
 ```text
-lane_controller -- /cmd/lane ---------+
-                                       |
-mission nodes ---- /cmd/mission -------+--> command_arbiter -- /cmd/final
-                                       |                             |
-safety_manager --- /cmd/emergency -----+                             v
-                                                         vehicle_controller
-                                                                   |
-                                                                   v
-                                                              stm32_bridge
+/cmd/lane -----+
+/cmd/mission --+--> command_arbiter
+/cmd/emergency +          |
+                         v
+                    /cmd/final
+                    DriveCommand
+                         |
+                         v
+                 vehicle_controller
+                         |
+                         v
+                  /vehicle/command
+                   VehicleCommand
+                         |
+                         v
+                  stm32_bridge_node
+                         |
+                         v
+                       STM32
 ```
+
+`VehicleCommand` is a low-level command, not a physical-unit target:
+
+- `drive_state`: `0 = STOP`, `1 = FORWARD`, `2 = REVERSE`.
+- `steering_adc`: STM32 steering target raw ADC; current firmware accepts
+  `50..4040` inclusive.
+- `emergency_stop`: when true, the bridge must send `X` with priority over all
+  other values and must not send forward, reverse, or steering commands.
+
+`vehicle_controller` owns the conversion from `DriveCommand.speed_mps` and
+`DriveCommand.steering_angle_rad` to `VehicleCommand.drive_state` and
+`VehicleCommand.steering_adc`. The final bridge contract only translates these
+low-level values to `W`/`S`/`X`/`Tdddd` serial commands. Current firmware has no
+numeric speed command, and physical steering-angle calibration is incomplete;
+this interface adds no speed target, PWM, motor percentage, or steering angle.
+
+Current implementation temporarily bypasses `vehicle_controller`:
+`stm32_bridge_node` still subscribes directly to `/cmd/final` as `DriveCommand`
+and performs conversion internally. The diagram and `/vehicle/command` row
+define the final contract; this interface phase does not modify bridge code or
+implement `vehicle_controller`.
 
 The following boundaries are mandatory:
 

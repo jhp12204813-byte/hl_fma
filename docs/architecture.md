@@ -81,8 +81,11 @@ The following rules are fixed:
 5. Only `command_arbiter` selects the final command from multiple
    `fma_interfaces/msg/DriveCommand` candidates.
 6. `vehicle_controller` converts `speed_mps` and `steering_angle_rad` targets
-   into values required by the vehicle-control interface.
-7. `stm32_bridge` performs ROS2-to-STM32 communication only.
+   from `/cmd/final` (`DriveCommand`) into `drive_state` and `steering_adc`
+   on `/vehicle/command` (`VehicleCommand`).
+7. `stm32_bridge_node` translates `VehicleCommand` into the STM32 serial
+   protocol `W`/`S`/`X`/`Tdddd`; it does not own physical-unit conversion in
+   the final architecture.
 8. Lane detection and mission decisions must not be placed inside
    `stm32_bridge`.
 9. The `safety_manager` emergency command always has the highest priority.
@@ -100,12 +103,17 @@ mission nodes ---- /cmd/mission -------+--> command_arbiter
                                        |            |
 safety_manager --- /cmd/emergency -----+            v
                                                  /cmd/final
+                                                DriveCommand
                                                     |
                                                     v
                                            vehicle_controller
                                                     |
                                                     v
-                                               stm32_bridge
+                                             /vehicle/command
+                                              VehicleCommand
+                                                    |
+                                                    v
+                                            stm32_bridge_node
                                                     |
                                                     v
                                                   STM32
@@ -121,6 +129,25 @@ The fixed command priority is:
 effective command. `vehicle_controller` consumes `/cmd/final`; it does not
 arbitrate competing behaviors. The future implementation must define freshness,
 timeout, inactive-publisher, and emergency-release behavior before vehicle use.
+
+`vehicle_controller` publishes the low-level `VehicleCommand` on
+`/vehicle/command`; `stm32_bridge_node` is its subscriber. Drive state is an enum
+(`0 = STOP`, `1 = FORWARD`, `2 = REVERSE`), and steering is a raw ADC target in
+the current firmware range `50..4040`. If `emergency_stop` is true, the bridge
+must prioritize `X` and suppress forward, reverse, and steering commands.
+This does not imply a latched emergency feature in firmware.
+
+Current firmware has no numeric speed command. Physical steering-angle
+calibration is also incomplete. `VehicleCommand` therefore contains neither
+physical speed/angle targets nor PWM/motor-percentage fields; conversion from
+the high-level `DriveCommand` remains `vehicle_controller`'s responsibility.
+
+Current implementation temporarily bypasses `vehicle_controller`: the existing
+`stm32_bridge_node` directly subscribes to `/cmd/final` (`DriveCommand`) and
+performs speed-sign and steering conversion internally. This is a temporary
+implementation difference from the final contract above. This phase defines
+`VehicleCommand` and `/vehicle/command` only; it leaves bridge code unchanged
+and does not implement `vehicle_controller`.
 
 ## 7. Perception, localization, and mission interaction
 
