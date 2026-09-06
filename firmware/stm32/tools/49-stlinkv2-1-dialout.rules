@@ -1,0 +1,3 @@
+# NUCLEO boards with onboard ST-LINK/V2-1; access limited to dialout members.
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374b", MODE:="0660", GROUP:="dialout", SYMLINK+="stlinkv2-1_%n"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3752", MODE:="0660", GROUP:="dialout", SYMLINK+="stlinkv2-1_%n"
