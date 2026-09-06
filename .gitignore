@@ -23,3 +23,30 @@ data/
 .DS_Store
 *.log
 *.tmp
+
+# STM32 build artifacts
+firmware/stm32/Debug/
+firmware/stm32/Release/
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.d
+
+# STM32CubeIDE metadata
+firmware/stm32/.settings/
+firmware/stm32/.metadata/
+
+# STM32 local build directory
+firmware/stm32/build/
+
+# Local Python virtual environment used by STM32 test tools
+firmware/stm32/.venv-camera/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# RealSense temporary capture metadata
+rs-save-to-disk-output-*.csv
