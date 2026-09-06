@@ -17,5 +17,7 @@ setup(
     description='STM32 bridge and vehicle state interfaces for the FMA autonomous vehicle.',
     license='TODO',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []},
+    entry_points={'console_scripts': [
+        'stm32_bridge_node = fma_vehicle.stm32_bridge_node:main',
+    ]},
 )
