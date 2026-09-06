@@ -116,8 +116,44 @@ The fixed arbitration priority is:
 
 ## 8. Vehicle feedback topics
 
-The following topic needs are known, but their contracts cannot be fixed before
-the STM32 firmware and serial packet format are inspected.
+`/vehicle/feedback` is the canonical integrated feedback topic for information
+actually available in the current STM32 firmware telemetry. Its publisher is
+the future `stm32_bridge_node`; localization, control, and diagnostics are
+candidate subscribers.
+
+| Topic | Message Type | Publisher | Subscriber | Unit | frame_id | Purpose | Status |
+|---|---|---|---|---|---|---|---|
+| `/vehicle/feedback` | `fma_interfaces/msg/VehicleFeedback` | `stm32_bridge_node` | localization / control / diagnostics (candidates) | Encoder: count; measured speed: m/s; steering: raw ADC; drive state: enum | TBD | Integrated STM32 encoder, measured speed, steering raw ADC, and drive state feedback | FIXED |
+
+The fields map to current firmware telemetry as follows:
+
+- `encoder_count`: STM32 telemetry `ENC` value.
+- `speed_mps`: STM32 telemetry `SPEED`, converted from mm/s to m/s by the
+  ROS2 bridge.
+- `steering_adc`: steering potentiometer raw ADC value, not a steering angle.
+- `drive_state`: firmware state `0 = STOP`, `1 = FORWARD`, `2 = REVERSE`,
+  represented by `DRIVE_STOP`, `DRIVE_FORWARD`, and `DRIVE_REVERSE`.
+
+The feedback direction is:
+
+```text
+STM32
+  ↓
+stm32_bridge_node
+  ↓
+/vehicle/feedback
+  ↓
+localization / control / diagnostics
+```
+
+This contract adds only the message definition; `stm32_bridge_node` is not
+implemented in this phase. Steering angle, emergency state, communication
+status, fault bitfields, motor PWM, encoder/ADC faults, and heartbeat are not
+available in current firmware telemetry and are not fields of this message.
+Final steering-angle, status, and fault interfaces remain TBD.
+
+The previously identified separate topics below remain TBD; the integrated
+feedback contract does not finalize or require these separate interfaces.
 
 | Topic | Message Type | Publisher | Subscriber | Unit | frame_id | Purpose | Status |
 |---|---|---|---|---|---|---|---|
@@ -126,10 +162,11 @@ the STM32 firmware and serial packet format are inspected.
 | `/vehicle/steering_angle` | TBD | TBD: `stm32_bridge` or ROS-side converter | `odometry_node`, `vehicle_controller`, `safety_manager` | rad after conversion; raw ADC representation TBD | TBD | Current steering feedback | TBD |
 | `/vehicle/status` | TBD | `stm32_bridge` | `safety_manager`, monitoring nodes | TBD | TBD | STM32 connection, fault, and vehicle state | TBD |
 
-Firmware analysis must determine the encoder count and layout, whether raw
-counts are transmitted, where speed is calculated, whether steering is sent as
-raw potentiometer ADC or converted angle, which status flags are required, and
-the serial packet format.
+Further design must determine whether separate topics are needed, their final
+message types, encoder configuration, raw-ADC-to-angle conversion, any future
+status/fault fields, and the final serial packet contract. The current integrated
+feedback uses firmware-provided encoder count and speed plus raw steering ADC
+and drive state as defined above.
 
 ## 9. Coordinate, unit, and TF rules
 
@@ -189,7 +226,7 @@ The following items are explicitly TBD:
 
 - STM32 serial packet format
 - `/vehicle/encoder` message type and encoder configuration
-- `/vehicle/speed` message type and speed-calculation location
+- `/vehicle/speed` separate message type and any ROS-side speed-estimation role
 - `/vehicle/steering_angle` message type and steering feedback format
 - `/vehicle/status` message type and required status/fault fields
 - `/mission/zone` message type
