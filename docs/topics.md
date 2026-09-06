@@ -120,16 +120,17 @@ settle that input-side contract.
 
 `vehicle_controller` owns the conversion from `DriveCommand.speed_mps` and
 `DriveCommand.steering_angle_rad` to `VehicleCommand.drive_state` and
-`VehicleCommand.steering_adc`. The final bridge contract only translates these
+`VehicleCommand.steering_adc`. The bridge only translates these
 low-level values to `W`/`S`/`X`/`Tdddd` serial commands. Current firmware has no
 numeric speed command, and physical steering-angle calibration is incomplete;
 this interface adds no speed target, PWM, motor percentage, or steering angle.
 
-Current implementation temporarily bypasses `vehicle_controller`:
-`stm32_bridge_node` still subscribes directly to `/cmd/final` as `DriveCommand`
-and performs conversion internally. The diagram and `/vehicle/command` row
-define the final contract; this interface phase does not modify bridge code or
-implement `vehicle_controller`.
+The implemented bridge consumes `/vehicle/command` and publishes
+`/vehicle/feedback`. It validates drive state and steering ADC range, and sends
+only `X` for STOP, emergency, invalid input, or stale input. Its independent
+`vehicle_command_timeout_sec` defaults to 0.5 seconds since the last valid
+non-emergency command; startup also remains STOP. Drive and steering refreshes
+share one serial TX path, with one command per write and no steering during STOP.
 
 The following boundaries are mandatory:
 
@@ -150,7 +151,7 @@ The fixed arbitration priority is:
 
 `/vehicle/feedback` is the canonical integrated feedback topic for information
 actually available in the current STM32 firmware telemetry. Its publisher is
-the future `stm32_bridge_node`; localization, control, and diagnostics are
+`stm32_bridge_node`; localization, control, and diagnostics are
 candidate subscribers.
 
 | Topic | Message Type | Publisher | Subscriber | Unit | frame_id | Purpose | Status |
@@ -178,8 +179,7 @@ stm32_bridge_node
 localization / control / diagnostics
 ```
 
-This contract adds only the message definition; `stm32_bridge_node` is not
-implemented in this phase. Steering angle, emergency state, communication
+Steering angle, emergency state, communication
 status, fault bitfields, motor PWM, encoder/ADC faults, and heartbeat are not
 available in current firmware telemetry and are not fields of this message.
 Final steering-angle, status, and fault interfaces remain TBD.

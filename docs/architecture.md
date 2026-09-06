@@ -84,8 +84,7 @@ The following rules are fixed:
    from `/cmd/final` (`DriveCommand`) into `drive_state` and `steering_adc`
    on `/vehicle/command` (`VehicleCommand`).
 7. `stm32_bridge_node` translates `VehicleCommand` into the STM32 serial
-   protocol `W`/`S`/`X`/`Tdddd`; it does not own physical-unit conversion in
-   the final architecture.
+   protocol `W`/`S`/`X`/`Tdddd`; it does not own physical-unit conversion.
 8. Lane detection and mission decisions must not be placed inside
    `stm32_bridge`.
 9. The `safety_manager` emergency command always has the highest priority.
@@ -142,12 +141,12 @@ calibration is also incomplete. `VehicleCommand` therefore contains neither
 physical speed/angle targets nor PWM/motor-percentage fields; conversion from
 the high-level `DriveCommand` remains `vehicle_controller`'s responsibility.
 
-Current implementation temporarily bypasses `vehicle_controller`: the existing
-`stm32_bridge_node` directly subscribes to `/cmd/final` (`DriveCommand`) and
-performs speed-sign and steering conversion internally. This is a temporary
-implementation difference from the final contract above. This phase defines
-`VehicleCommand` and `/vehicle/command` only; it leaves bridge code unchanged
-and does not implement `vehicle_controller`.
+The implemented bridge consumes `/vehicle/command` and publishes
+`/vehicle/feedback`. It validates drive state and steering ADC range, and sends
+only `X` for STOP, emergency, invalid input, or stale input. Its independent
+`vehicle_command_timeout_sec` defaults to 0.5 seconds since the last valid
+non-emergency command; startup also remains STOP. Drive and steering refreshes
+share one serial TX path, with one command per write and no steering during STOP.
 
 ## 7. Perception, localization, and mission interaction
 
