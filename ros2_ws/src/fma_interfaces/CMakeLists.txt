@@ -16,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/LaneSignal.msg"
   "msg/MissionState.msg"
   "msg/VehicleFeedback.msg"
+  "msg/VehicleCommand.msg"
   DEPENDENCIES std_msgs
 )
 
