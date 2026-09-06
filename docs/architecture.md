@@ -126,8 +126,25 @@ The fixed command priority is:
 
 `command_arbiter` is the only publisher of `/cmd/final` and selects exactly one
 effective command. `vehicle_controller` consumes `/cmd/final`; it does not
-arbitrate competing behaviors. The future implementation must define freshness,
-timeout, inactive-publisher, and emergency-release behavior before vehicle use.
+arbitrate competing behaviors. `command_arbiter` publishes at 20 Hz by default
+(`output_rate_hz`) using a steady timer. Lane and mission candidates expire at
+local monotonic receive age >= `lane_timeout_sec` / `mission_timeout_sec`
+(both default 0.5 s); sender header timestamps are ignored. Fresh valid mission
+wins over fresh valid lane. NaN/Inf speed or steering invalidates that source's
+previous candidate, with throttled warnings; arbitration falls back to another
+valid source. No valid lane/mission candidate, including startup, produces a
+fail-safe STOP: speed and steering zero, `emergency_stop=true`.
+
+Emergency latch starts false. A newly received `/cmd/emergency` with
+`emergency_stop=true` sets the latch regardless of numeric fields. While latched,
+every output is the standardized STOP. Only an explicit newly received
+`emergency_stop=false` on `/cmd/emergency` releases the latch, after which
+current lane/mission freshness is evaluated again. Stale emergency input alone
+never releases it. `emergency_timeout_sec` (default 0.5 s) only controls stale
+emergency warning diagnostics. Emergency numeric fields are never selected.
+Selected lane/mission commands retain all three command fields, including an
+intentional `emergency_stop=true`; that flag does not set the arbiter latch.
+Output headers use current ROS publish time and an empty `frame_id`.
 
 `vehicle_controller` publishes the low-level `VehicleCommand` on
 `/vehicle/command`; `stm32_bridge_node` is its subscriber. Drive state is an enum
@@ -237,8 +254,8 @@ the following gaps or ambiguities:
    encoding and conversion to meters must be specified in configuration or the
    perception contract.
 5. Confidence fields do not encode a valid range or invalid-value convention.
-6. `DriveCommand.header.stamp` can support freshness checks, but timeout,
-   validity, and emergency-release semantics are not fixed.
+6. Command arbitration freshness, validity, and emergency-release semantics
+   are defined in section 6; sender stamps are not used for freshness.
 7. Header `frame_id` semantics for most custom messages and all final sensor TF
    names are not yet fixed.
 8. Recommended QoS classes exist, but exact compatible profiles and queue sizes
@@ -263,5 +280,4 @@ The following items remain TBD and must not be inferred by node implementations:
 - Actual sensor-driver topic remapping
 - Depth-image encoding and scale
 - Confidence-field semantics
-- Command freshness, timeout, and emergency-release behavior
 - Final QoS tuning

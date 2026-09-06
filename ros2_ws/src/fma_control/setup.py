@@ -17,5 +17,7 @@ setup(
     description='Control, command arbitration, and safety components for the FMA autonomous vehicle.',
     license='TODO',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []},
+    entry_points={'console_scripts': [
+        'command_arbiter = fma_control.command_arbiter_node:main',
+    ]},
 )

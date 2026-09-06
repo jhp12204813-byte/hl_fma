@@ -145,7 +145,21 @@ The fixed arbitration priority is:
 2. `/cmd/mission`
 3. `/cmd/lane`
 
-`command_arbiter` publishes only `/cmd/final`.
+`command_arbiter` publishes only `/cmd/final`, at 20 Hz by default. Lane and
+mission freshness uses local monotonic receive time, with `lane_timeout_sec`
+and `mission_timeout_sec` both defaulting to 0.5 s (age >= timeout is stale).
+Invalid numeric candidates are discarded, including their source's previous
+candidate; fresh valid mission wins over fresh valid lane. No valid candidate
+produces zero speed/steering and `emergency_stop=true`.
+
+`/cmd/emergency` sets an emergency latch on `emergency_stop=true`; only an
+explicit newly received `emergency_stop=false` releases it. Stale emergency
+input never releases the latch. `emergency_timeout_sec` defaults to 0.5 s for
+stale-input diagnostics only. Emergency numeric fields are ignored, and latched
+output is always the standardized STOP. Selected lane/mission fields are
+preserved; output headers use current ROS time and an empty `frame_id`.
+See [architecture.md, section 6](architecture.md#6-command-and-vehicle-control-path)
+for the implementation semantics.
 
 ## 8. Vehicle feedback topics
 
@@ -249,8 +263,8 @@ vehicle.
 | Mission state | Reliable | State transitions should not be silently lost | TBD |
 
 Control topics are freshness-sensitive. The design must avoid processing a
-backlog of old commands; queue depth, deadline, liveliness, and command timeout
-values remain to be tuned.
+backlog of old commands. The arbiter uses reliable keep-last depth 1 and the
+receive-time timeouts above; deployment QoS tuning remains open.
 
 ## 11. Open design decisions
 
@@ -267,5 +281,4 @@ The following items are explicitly TBD:
 - Actual sensor-driver topic names and launch remapping
 - Depth-image encoding/unit handling
 - Confidence-field range and invalid-value semantics
-- Control command timeout/freshness rules
 - Final QoS tuning
