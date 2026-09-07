@@ -71,12 +71,15 @@ manager. No new custom message is introduced by this document.
 | Topic | Message Type | Publisher | Subscriber | Unit | frame_id | Purpose | Status |
 |---|---|---|---|---|---|---|---|
 | `/mission/current` | `fma_interfaces/msg/MissionState` | `mission_manager_node` | Individual mission nodes and nodes that gate behavior by mission | Mission enum and booleans | TBD; non-spatial message | Publishes the currently selected overall mission | FIXED |
-| `/mission/status` | `fma_interfaces/msg/MissionState` | `mission_manager_node` | Monitoring, recording, and system-level consumers | Mission enum and booleans | TBD; non-spatial message | Publishes aggregate mission activity/completion status | FIXED |
+| `/mission/status` | `fma_interfaces/msg/MissionState` | Active mission node | `mission_manager_node` | Mission enum and booleans | TBD; non-spatial message | Reports mission completion | FIXED |
 
-Individual mission nodes perform mission-specific behavior. The exact topic and
-interface by which each mission node reports completion to
-`mission_manager_node` are still TBD. `/mission/status` does not implicitly
-settle that input-side contract.
+`mission_manager` publishes `/mission/current` and accepts `/mission/status` only
+when current_mission matches the active mission and completed=true. Active maneuver
+states have active=true and completed=false. START/NORMAL_DRIVE have both false;
+terminal FINISH has active=false and completed=true. State is published on changes
+and at 2 Hz (reliable, transient-local depth 1). GPS uses sensor-data QoS.
+The course order and WP10 chain are defined in fma_mission/config/waypoints.yaml.
+StopLine and TrafficLight perception messages remain unchanged.
 
 ## 7. Control topics
 
@@ -281,7 +284,6 @@ The following items are explicitly TBD:
 - `/vehicle/steering_angle` message type and steering feedback format
 - `/vehicle/status` message type and required status/fault fields
 - `/mission/zone` message type
-- Individual mission completion signaling topic/interface
 - Final TF frame names and TF publisher ownership
 - Actual sensor-driver topic names and launch remapping
 - Depth-image encoding/unit handling
