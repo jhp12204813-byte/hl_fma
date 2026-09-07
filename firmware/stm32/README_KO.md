@@ -22,6 +22,48 @@ PB6/PB7 입력은 내부 풀업이 활성화되어 있습니다. MCU 핀에 5 V 
 출력 예시는 `ENC=123 SPEED=0mm/s STEER=2132 DRIVE=0\r\n` 형식입니다. 회전 방향이 반대라면 PB6과 PB7을
 서로 바꾸거나 소프트웨어에서 카운트 부호를 반대로 처리하십시오.
 
+## 고정 serial 경로 설정 (Ubuntu / Jetson)
+
+ROS bridge의 기본 serial device는 `/dev/fma_stm32`이다. USB 연결 순서에 따라
+달라지는 `/dev/ttyACM0`, `/dev/ttyACM1` 대신 동일 보드를 식별한다.
+`udev/99-fma-stm32.rules`는 실기에서 검증된 rule이며,
+serial `0671FF505055877267173020`은 현재 프로젝트 NUCLEO/ST-LINK 보드 고유값이다.
+다른 보드로 교체하면 해당 보드의 vendor/product/serial에 맞게 rule을 수정해야 한다.
+
+저장소 root에서 설치한다:
+
+```bash
+sudo cp firmware/stm32/udev/99-fma-stm32.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+NUCLEO USB를 재연결한 뒤 확인한다:
+
+```bash
+ls -l /dev/fma_stm32
+```
+
+rule은 장치 권한을 `dialout` 그룹, `0660`으로 설정한다. 실행 사용자가
+`dialout`에 속하지 않았다면 `sudo usermod -aG dialout "$USER"` 후 다시 로그인한다.
+기존 `tools/setup_stlink_permissions.sh`는 ST-LINK 권한 설정용이며 이 고정
+symlink rule 설치를 대신하지 않는다.
+
+ROS 환경을 source한 뒤 다음 명령은 기본적으로 `/dev/fma_stm32`를 사용한다:
+
+```bash
+ros2 run fma_vehicle stm32_bridge_node
+```
+
+다른 장치를 명시하는 startup parameter도 유지한다:
+
+```bash
+ros2 run fma_vehicle stm32_bridge_node --ros-args -p port:=/some/device
+```
+
+기존 standalone firmware 도구의 기본 경로는 변경하지 않았다. 아래 예시는
+고정 경로를 명시적으로 전달한다.
+
 ## 키보드 명령
 
 | 키 | 동작 |
@@ -33,13 +75,13 @@ PB6/PB7 입력은 내부 풀업이 활성화되어 있습니다. MCU 핀에 5 V 
 | C | 조향 중앙 복귀 |
 | X 또는 Space | 구동 및 조향 즉시 정지 |
 
-키 입력은 `/dev/ttyACM0`, `115200 baud`, `8-N-1` 조건으로 전송합니다.
+키 입력은 아래 udev 설정 후 `/dev/fma_stm32`, `115200 baud`, `8-N-1` 조건으로 전송합니다.
 부팅 시 구동 PWM과 조향 PWM은 모두 0%이며, 조향 목표는 현재 센서값으로
 설정되므로 명령 전에는 조향모터가 움직이지 않습니다.
 
 ```bash
 python3 -m pip install pyserial
-./tools/keyboard_control.py /dev/ttyACM0
+./tools/keyboard_control.py /dev/fma_stm32
 ```
 
 펌웨어는 마지막 유효 명령 후 0.7초 동안 새 키 메시지가 없으면 구동과
@@ -63,7 +105,7 @@ OpenCV 환경은 프로젝트의 `.venv-camera`에 설치되어 있습니다.
 
 ```bash
 cd /home/idp2/STM32Cube/Repository/STM32Cube_FW_F4_V1.28.0/Projects/STM32F401RE-Nucleo/EncoderTest
-.venv-camera/bin/python tools/camera_lane_control.py --port /dev/ttyACM0 --camera 2
+.venv-camera/bin/python tools/camera_lane_control.py --port /dev/fma_stm32 --camera 2
 ```
 
 카메라 창을 선택한 상태에서 WASD를 사용합니다. 초록색 선은 검출 차선,
@@ -89,7 +131,7 @@ cd /home/idp2/STM32Cube/Repository/STM32Cube_FW_F4_V1.28.0/Projects/STM32F401RE-
 
 ```bash
 cd /home/idp2/STM32Cube/Repository/STM32Cube_FW_F4_V1.28.0/Projects/STM32F401RE-Nucleo/EncoderTest
-.venv-camera/bin/python tools/left_lane_follow.py --camera 2 --port /dev/ttyACM0
+.venv-camera/bin/python tools/left_lane_follow.py --camera 2 --port /dev/fma_stm32
 ```
 
 정지선은 화면 높이 60%보다 가까운 위치에서 가로로 넓은 흰색 선이 3프레임

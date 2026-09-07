@@ -85,6 +85,8 @@ def test_topics_and_defaults(env):
     node = env.make()
     assert env.subscriber.call_args.args[:2] == (VehicleCommand, '/vehicle/command')
     assert env.publisher.call_args.args[:2] == (VehicleFeedback, '/vehicle/feedback')
+    assert node.config['port'] == '/dev/fma_stm32'
+    assert env.serial.call_args.kwargs['port'] == '/dev/fma_stm32'
     assert node.config['vehicle_command_timeout_sec'] == .5
     assert (node.drive_period, node.steering_period) == (.2, .1)
     assert env.timer.call_args.kwargs['clock'].clock_type == ClockType.STEADY_TIME
@@ -262,3 +264,9 @@ def test_telemetry_adc_is_not_limited_to_command_targets(adc):
     # Measured feedback can be outside safe command limits and must remain visible.
     assert bridge.parse_telemetry(f'ENC=0 SPEED=0mm/s STEER={adc} DRIVE=0') == (
         0, 0.0, adc, 0)
+
+
+def test_explicit_port_override(env):
+    node = env.make(port='/some/device')
+    assert node.config['port'] == '/some/device'
+    assert env.serial.call_args.kwargs['port'] == '/some/device'
