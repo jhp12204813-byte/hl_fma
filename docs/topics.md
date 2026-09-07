@@ -87,13 +87,15 @@ StopLine and TrafficLight perception messages remain unchanged.
 |---|---|---|---|---|---|---|---|
 | `/cmd/lane` | `fma_interfaces/msg/DriveCommand` | `lane_controller_node` | `command_arbiter` | Speed: m/s; steering: rad | TBD | Normal lane-following command candidate | FIXED |
 | `/cmd/mission` | `fma_interfaces/msg/DriveCommand` | Active mission node | `command_arbiter` | Speed: m/s; steering: rad | TBD | Mission-specific command candidate | FIXED |
-| `/cmd/emergency` | `fma_interfaces/msg/DriveCommand` | `safety_manager` | `command_arbiter` | Speed: m/s; steering: rad | TBD | Highest-priority safety command candidate | FIXED |
+| `/cmd/manual` | `fma_interfaces/msg/DriveCommand` | `keyboard_teleop` / human manual control | `command_arbiter` | Speed: m/s; steering: rad | TBD | Highest-priority human manual override | FIXED |
+| `/cmd/emergency` | `fma_interfaces/msg/DriveCommand` | `safety_manager` | `command_arbiter` | Speed: m/s; steering: rad | TBD | Latched safety command below fresh valid manual | FIXED |
 | `/cmd/final` | `fma_interfaces/msg/DriveCommand` | `command_arbiter` | `vehicle_controller` | Speed: m/s; steering: rad | TBD | The only selected command sent into vehicle control | FIXED |
 | `/vehicle/command` | `fma_interfaces/msg/VehicleCommand` | `vehicle_controller` | `stm32_bridge_node` | Drive state: enum; steering: raw ADC; emergency: bool | TBD | Low-level vehicle command after speed/steering conversion | FIXED |
 
 ```text
 /cmd/lane -----+
 /cmd/mission --+--> command_arbiter
+/cmd/manual ---+          |
 /cmd/emergency +          |
                          v
                     /cmd/final
@@ -149,25 +151,30 @@ The following boundaries are mandatory:
 
 The fixed arbitration priority is:
 
-1. `/cmd/emergency`
-2. `/cmd/mission`
-3. `/cmd/lane`
+1. `/cmd/manual`
+2. `/cmd/emergency`
+3. `/cmd/mission`
+4. `/cmd/lane`
 
-`command_arbiter` publishes only `/cmd/final`, at 20 Hz by default. Lane and
-mission freshness uses local monotonic receive time, with `lane_timeout_sec`
-and `mission_timeout_sec` both defaulting to 0.5 s (age >= timeout is stale).
+`command_arbiter` publishes only `/cmd/final`, at 20 Hz by default. Lane, mission and
+manual freshness uses local monotonic receive time, with `lane_timeout_sec`,
+`mission_timeout_sec` and `manual_timeout_sec` all defaulting to 0.5 s
+(age >= timeout is stale).
 Invalid numeric candidates are discarded, including their source's previous
-candidate; fresh valid mission wins over fresh valid lane. No valid candidate
+candidate; fresh valid manual wins over emergency, then mission, then lane. No valid candidate
 produces zero speed/steering and `emergency_stop=true`.
 
 `/cmd/emergency` sets an emergency latch on `emergency_stop=true`; only an
 explicit newly received `emergency_stop=false` releases it. Stale emergency
 input never releases the latch. `emergency_timeout_sec` defaults to 0.5 s for
 stale-input diagnostics only. Emergency numeric fields are ignored, and latched
-output is always the standardized STOP. Selected lane/mission fields are
+output is the standardized STOP unless fresh valid manual takes priority.
+Manual selection preserves the latch; manual expiry immediately restores emergency STOP. Selected manual/mission/lane fields are
 preserved; output headers use current ROS time and an empty `frame_id`.
 See [architecture.md, section 6](architecture.md#6-command-and-vehicle-control-path)
-for the implementation semantics.
+for the implementation semantics. Keyboard startup STOP takes over on its first
+fresh manual message. After keyboard publishing stops, manual timeout automatically
+selects a preserved emergency latch first, then fresh mission, then fresh lane, else STOP; stale manual is not held.
 
 ## 8. Vehicle feedback topics
 

@@ -18,7 +18,7 @@ WP11 도착은 terminal FINISH이고 이후 GPS/완료 입력은 진행시키지
 FINISH는 active=false, completed=true, 일반 mission은 active=true이다.
 
 GPS는 trigger만 담당한다. 구동 명령·조향·주차·회전 maneuver는 구현하지 않는다.
-기존 emergency > mission > lane 우선순위를 유지한다. MissionState enum 숫자가
+MANUAL > EMERGENCY > MISSION > LANE 우선순위를 따른다. MissionState enum 숫자가
 변경되므로 관련 패키지를 함께 재빌드하고 기존 기록/외부 소비자의 enum도 맞춰야 한다.
 현재 메시지에는 execution ID가 없으므로 일치하는 mission의 오래된 완료 메시지와
 새 완료를 구별하지 못한다. 재시작은 WP01부터 시작하며 자동 복구는 구현하지 않는다.

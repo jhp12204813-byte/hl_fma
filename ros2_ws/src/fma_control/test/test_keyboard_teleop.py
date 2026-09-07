@@ -63,10 +63,14 @@ def env(monkeypatch):
 
 def test_topics_timer_commands_headers(env):
     node = env.node
-    assert env.publisher.call_args.args == (DriveCommand, '/cmd/lane', 1)
+    assert env.publisher.call_args.args == (DriveCommand, '/cmd/manual', 1)
     assert env.subscriber.call_args.args[:2] == (VehicleFeedback, '/vehicle/feedback')
     assert env.timer.call_args.args == (.1, node.publish_command)
     assert env.timer.call_args.kwargs['clock'].clock_type == ClockType.STEADY_TIME
+    node.publish_command()
+    startup = node.publisher.publish.call_args.args[0]
+    assert startup.speed_mps == 0. and startup.steering_angle_rad == 0.
+    assert not startup.emergency_stop
     for key, speed in [('w', .2), ('s', -.2), ('x', 0.)]:
         node.handle_key(key)
         msg = node.publisher.publish.call_args.args[0]

@@ -41,7 +41,7 @@ through declared topics rather than by embedding one layer's logic in another.
 
 ## 3. Safety path
 
-Safety is an independent, higher-priority path:
+Safety is an independent path below fresh manual and above autonomous commands:
 
 ```text
 Sensors / Vehicle State
@@ -53,7 +53,7 @@ Sensors / Vehicle State
   command_arbiter
 ```
 
-An emergency command always outranks mission and lane commands. Safety input
+Fresh valid manual commands outrank emergency; emergency outranks mission and lane. Safety input
 may include processed obstacle information and, after its interface is defined,
 vehicle connection/fault state. The safety path must remain effective regardless
 of the active mission.
@@ -87,7 +87,7 @@ The following rules are fixed:
    protocol `W`/`S`/`X`/`Tdddd`; it does not own physical-unit conversion.
 8. Lane detection and mission decisions must not be placed inside
    `stm32_bridge`.
-9. The `safety_manager` emergency command always has the highest priority.
+9. Fresh valid manual commands have highest priority; emergency is next.
 
 These boundaries preserve testability: perception outputs, mission decisions,
 arbitration, vehicle conversion, and serial transport can each be tested without
@@ -99,6 +99,7 @@ requiring another layer's implementation details.
 lane_controller -- /cmd/lane ---------+
                                        |
 mission nodes ---- /cmd/mission -------+--> command_arbiter
+keyboard_teleop -- /cmd/manual --------+            |
                                        |            |
 safety_manager --- /cmd/emergency -----+            v
                                                  /cmd/final
@@ -120,31 +121,40 @@ safety_manager --- /cmd/emergency -----+            v
 
 The fixed command priority is:
 
-1. Emergency: `/cmd/emergency`
-2. Mission: `/cmd/mission`
-3. Lane following: `/cmd/lane`
+1. Manual override: `/cmd/manual`
+2. Emergency: `/cmd/emergency`
+3. Mission: `/cmd/mission`
+4. Lane following: `/cmd/lane`
 
 `command_arbiter` is the only publisher of `/cmd/final` and selects exactly one
 effective command. `vehicle_controller` consumes `/cmd/final`; it does not
 arbitrate competing behaviors. `command_arbiter` publishes at 20 Hz by default
-(`output_rate_hz`) using a steady timer. Lane and mission candidates expire at
-local monotonic receive age >= `lane_timeout_sec` / `mission_timeout_sec`
-(both default 0.5 s); sender header timestamps are ignored. Fresh valid mission
-wins over fresh valid lane. NaN/Inf speed or steering invalidates that source's
+(`output_rate_hz`) using a steady timer. Lane, mission and manual candidates expire at
+local monotonic receive age >= `lane_timeout_sec` / `mission_timeout_sec` /
+`manual_timeout_sec` (all default 0.5 s); sender header timestamps are ignored.
+Fresh valid manual wins over emergency, then mission, then lane. NaN/Inf speed or
+steering invalidates that source's
 previous candidate, with throttled warnings; arbitration falls back to another
-valid source. No valid lane/mission candidate, including startup, produces a
+valid source. No valid manual/mission/lane candidate, including startup, produces a
 fail-safe STOP: speed and steering zero, `emergency_stop=true`.
 
 Emergency latch starts false. A newly received `/cmd/emergency` with
-`emergency_stop=true` sets the latch regardless of numeric fields. While latched,
-every output is the standardized STOP. Only an explicit newly received
+`emergency_stop=true` sets the latch regardless of numeric fields. While latched and without fresh valid manual input,
+output is the standardized STOP. Fresh valid manual is selected without clearing the latch. Only an explicit newly received
 `emergency_stop=false` on `/cmd/emergency` releases the latch, after which
-current lane/mission freshness is evaluated again. Stale emergency input alone
+current manual/mission/lane freshness is evaluated again. Stale emergency input alone
 never releases it. `emergency_timeout_sec` (default 0.5 s) only controls stale
 emergency warning diagnostics. Emergency numeric fields are never selected.
-Selected lane/mission commands retain all three command fields, including an
+Selected manual/mission/lane commands retain all three command fields, including an
 intentional `emergency_stop=true`; that flag does not set the arbiter latch.
 Output headers use current ROS publish time and an empty `frame_id`.
+
+Keyboard teleop publishes only `/cmd/manual`; autonomous lane control uses
+`/cmd/lane`. The first fresh manual STOP takes over autonomous commands.
+On Q/Ctrl+C or handled errors, teleop retains its repeated STOP cleanup.
+After publishing ends (including a crash), manual expires at its receive-time
+timeout: a preserved emergency latch immediately selects STOP; otherwise fresh
+mission resumes, then fresh lane, else STOP. Stale manual is never retained.
 
 `vehicle_controller` publishes the low-level `VehicleCommand` on
 `/vehicle/command`; `stm32_bridge_node` is its subscriber. Drive state is an enum
@@ -253,8 +263,7 @@ timeout behavior require final tuning with the actual sensors and computer load.
 - Perception, mission, control, vehicle conversion, and STM32 transport remain
   separate responsibilities.
 - All motion commands pass through `command_arbiter`.
-- Emergency commands have priority over mission commands, which have priority
-  over lane-following commands.
+- Command priority is MANUAL > EMERGENCY > MISSION > LANE.
 - `command_arbiter` alone publishes `/cmd/final`.
 - GPS supplies mission-zone approach information rather than direct control.
 

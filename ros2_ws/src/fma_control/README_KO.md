@@ -1,6 +1,6 @@
 # Keyboard teleop
 
-`keyboard_teleop`은 `/cmd/lane`에 `DriveCommand`를 발행하고
+`keyboard_teleop`은 `/cmd/manual`에 `DriveCommand`를 발행하고
 `/vehicle/feedback`의 `VehicleFeedback`을 표시한다. Serial이나
 `/vehicle/command`에 직접 명령을 보내지 않는다.
 
@@ -17,11 +17,24 @@ ros2 run fma_vehicle stm32_bridge_node
 ros2 run fma_control keyboard_teleop
 ```
 
-**manual teleop 사용 중에는 다른 /cmd/lane publisher를 실행하지 마세요.**
-기존 emergency > mission > lane 우선순위를 유지한다. 따라서 mission 입력이나
-emergency latch가 활성화되어 있으면 teleop 명령(정지 포함)보다 우선한다.
-수동 조작 중에는 mission publisher도 중지해야 하며 emergency latch는
-기존 safety 절차로 관리한다. Teleop은 emergency latch를 설정·해제하지 않는다.
+우선순위는 **MANUAL > EMERGENCY > MISSION > LANE**이다.
+Teleop 전용 `/cmd/manual`과 autonomous lane controller의 `/cmd/lane`은 분리된다.
+다른 `/cmd/manual` publisher를 동시에 실행하지 않는다.
+첫 fresh manual STOP부터 mission/lane보다 우선하므로 시작 시 수동 정지로 인계된다.
+Fresh valid manual은 emergency latch보다 우선하지만 latch 상태를 지우지 않는다.
+Manual timeout 직후 latch가 true이면 즉시 emergency STOP을 선택한다.
+Teleop은 latch를 설정·해제하지 않는다.
+
+Arbiter의 startup-only `manual_topic` 기본값은 `/cmd/manual`,
+`manual_timeout_sec` 기본값은 0.5초이다. Sender timestamp 대신 local monotonic
+수신 시각으로 freshness를 판단하며 age >= timeout이면 stale이다.
+NaN/Inf manual 입력은 해당 source의 이전 명령도 무효화하고 다음 유효 source로 전환한다.
+**Teleop 종료 후 마지막 manual 수신으로부터 timeout이 지나면 자율주행이 자동 재개될 수 있다.**
+Q/Ctrl+C 종료 시 STOP 반복 발행은 유지한다. 프로세스 종료/crash 등으로 발행이
+끊기면 emergency latch → fresh mission → fresh lane → 모두 없으면 fail-safe STOP
+순으로 복귀하며,
+stale manual 명령을 계속 유지하지 않는다. Emergency latch는 timeout만으로 해제되지 않고
+`/cmd/emergency`의 명시적인 `emergency_stop=false` 수신으로만 해제된다.
 
 | 키 (Enter 불필요, 대소문자 허용) | 동작 |
 |---|---|
