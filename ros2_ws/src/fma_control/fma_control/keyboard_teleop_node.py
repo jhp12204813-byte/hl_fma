@@ -1,4 +1,4 @@
-"""Terminal lane-command source; +/-0.2 means direction, not speed regulation."""
+"""Terminal manual-command source; +/-0.2 means direction, not speed regulation."""
 from dataclasses import dataclass
 import math
 import os
@@ -57,7 +57,7 @@ class KeyboardTeleopNode(Node):
         self.state = TeleopState()
         self.feedback = None
         self.feedback_received = None
-        self.publisher = self.create_publisher(DriveCommand, '/cmd/lane', 1)
+        self.publisher = self.create_publisher(DriveCommand, '/cmd/manual', 1)
         self.subscription = self.create_subscription(
             VehicleFeedback, '/vehicle/feedback', self.on_feedback, 1)
         self.timer = self.create_timer(
@@ -109,7 +109,7 @@ class KeyboardTeleopNode(Node):
             ' FMA KEYBOARD TELEOP\n'
             'W: 전진  S: 후진  A: 좌조향  D: 우조향\n'
             'C: 중앙  SPACE/X: 정지  Q/Ctrl+C: 정지 후 종료\n'
-            'manual teleop 사용 중에는 다른 /cmd/lane publisher를 실행하지 마세요.\n'
+            '다른 /cmd/manual publisher를 실행하지 마세요. 종료 후 timeout이면 자율주행이 재개될 수 있습니다.\n'
             'STOP 상태에서는 실제 조향이 움직이지 않을 수 있음\n'
             '+/-0.2 명령은 방향 표시이며 실제 속도 목표가 아닙니다.\n'
             f'DRIVE TARGET : {self.state.drive}\n'

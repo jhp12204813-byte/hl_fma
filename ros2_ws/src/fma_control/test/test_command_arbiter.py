@@ -89,7 +89,7 @@ def test_node_contract_and_timer(env):
     assert env.publisher.call_args.args == (DriveCommand, '/cmd/final', 1)
     assert [(c.args[0], c.args[1], c.args[3]) for c in env.subscriber.call_args_list] == [
         (DriveCommand, '/cmd/lane', 1), (DriveCommand, '/cmd/mission', 1),
-        (DriveCommand, '/cmd/emergency', 1)]
+        (DriveCommand, '/cmd/manual', 1), (DriveCommand, '/cmd/emergency', 1)]
     assert env.timer.call_args.args == (.05, node.publish_output)
     assert env.timer.call_args.kwargs['clock'].clock_type == ClockType.STEADY_TIME
     assert all(d.read_only for d in env.descriptors.values())
@@ -108,9 +108,10 @@ def test_node_contract_and_timer(env):
 def test_parameter_overrides(env):
     node = env.make(lane_topic='/test/lane', mission_topic='/test/mission',
                     emergency_topic='/test/emergency', final_topic='/test/final',
+                    manual_topic='/test/manual', manual_timeout_sec=.125,
                     output_rate_hz=10., lane_timeout_sec=.25, mission_timeout_sec=1.)
     assert [c.args[1] for c in env.subscriber.call_args_list] == [
-        '/test/lane', '/test/mission', '/test/emergency']
+        '/test/lane', '/test/mission', '/test/manual', '/test/emergency']
     assert env.publisher.call_args.args[1] == '/test/final'
     assert env.timer.call_args.args[0] == .1
     node.on_lane(command())
@@ -123,7 +124,7 @@ def test_parameter_overrides(env):
     assert_stop(output(node))
 
 
-@pytest.mark.parametrize('name', ['lane_timeout_sec', 'mission_timeout_sec',
+@pytest.mark.parametrize('name', ['lane_timeout_sec', 'mission_timeout_sec', 'manual_timeout_sec',
                                   'emergency_timeout_sec', 'output_rate_hz'])
 @pytest.mark.parametrize('value', [0., -1., math.nan, math.inf])
 def test_invalid_parameters(env, name, value):
@@ -172,7 +173,7 @@ def test_freshness_fallback_ignores_sender_and_output_clocks(env):
     assert_stop(output(node))
 
 
-@pytest.mark.parametrize('source', ['lane', 'mission'])
+@pytest.mark.parametrize('source', ['lane', 'mission', 'manual'])
 def test_invalid_replaces_previous_and_warnings_throttled(env, source):
     node = env.make()
     callback = getattr(node, 'on_' + source)
@@ -197,7 +198,7 @@ def test_invalid_mission_falls_back_to_lane(env):
     assert output(node).speed_mps == 1.
 
 
-@pytest.mark.parametrize('source', ['lane', 'mission'])
+@pytest.mark.parametrize('source', ['lane', 'mission', 'manual'])
 def test_candidate_emergency_flag_preserved_without_latching(env, source):
     node = env.make()
     getattr(node, 'on_' + source)(command(-1., -.2, True))
@@ -225,3 +226,85 @@ def test_emergency_timeout_diagnostics_never_release(env):
     assert_stop(output(node))
     env.logger.warning.assert_called_once()
     assert node.emergency_latched
+
+
+@pytest.mark.parametrize('manual_age,mission_age,lane_age,latched,expected', [
+    (0., 0., 0., False, 'manual'),
+    (0., 0., 0., True, 'manual'),
+    (.5, 0., 0., True, 'emergency'),
+    (.5, 0., 0., False, 'mission'),
+    (.5, .5, 0., False, 'lane'),
+    (.5, .5, .5, False, None),
+])
+def test_manual_priority_and_fallback(manual_age, mission_age, lane_age, latched, expected):
+    assert select_source(
+        Candidate(1., .1, False, 10. - lane_age),
+        Candidate(2., .2, False, 10. - mission_age), latched, 10., .5, .5,
+        manual=Candidate(3., .3, False, 10. - manual_age),
+        manual_timeout=.5) == expected
+
+
+def test_manual_takeover_release_and_monotonic_timeout(env):
+    node = env.make()
+    assert node.config['manual_timeout_sec'] == .5
+    node.on_lane(command(1.))
+    node.on_mission(command(2.))
+    assert output(node).speed_mps == 2.
+    # The first keyboard message is STOP, even while autonomous inputs are fresh.
+    node.on_manual(command(0., 0., stamp=0))
+    assert values(output(node)) == (0., 0., False)
+    node.on_manual(command(-.2, -.1, stamp=2000000000))
+    assert values(output(node)) == pytest.approx((-.2, -.1, False))
+    # Exit STOP is still manual until its last local receive time expires.
+    node.on_manual(command(0., 0.))
+    env.now[0] = 10.25
+    node.on_mission(command(2.))
+    env.now[0] = 10.499
+    assert output(node).speed_mps == 0.
+    env.clock.now.return_value.to_msg.return_value = Time(sec=0)
+    env.now[0] = 10.5
+    assert output(node).speed_mps == 2.
+    node.on_lane(command(1.))
+    env.now[0] = 10.75
+    assert output(node).speed_mps == 1.
+    env.now[0] = 11.
+    assert_stop(output(node))
+
+
+@pytest.mark.parametrize('autonomous', [False, True])
+def test_manual_preempts_but_preserves_emergency_latch(env, autonomous):
+    node = env.make()
+    if autonomous:
+        node.on_lane(command(1.))
+        node.on_mission(command(2.))
+    node.on_manual(command(3.))
+    node.on_emergency(command(math.nan, math.nan, True))
+    assert output(node).speed_mps == 3.
+    assert node.emergency_latched
+    env.now[0] = 20.
+    node.on_manual(command(3.))
+    assert output(node).speed_mps == 3.
+    assert node.emergency_latched
+    env.now[0] = 20.499
+    assert output(node).speed_mps == 3.
+    env.now[0] = 20.5
+    assert_stop(output(node))
+    assert node.emergency_latched
+    node.on_mission(command(2.))
+    node.on_emergency(command(emergency=False))
+    assert not node.emergency_latched
+    assert output(node).speed_mps == 2.
+
+
+
+def test_manual_timeout_override_and_invalid_fallback(env):
+    node = env.make(manual_timeout_sec=.125)
+    node.on_mission(command(2.))
+    node.on_manual(command(3.))
+    env.now[0] = 10.124
+    assert output(node).speed_mps == 3.
+    env.now[0] = 10.125
+    assert output(node).speed_mps == 2.
+    node.on_manual(command(3.))
+    node.on_manual(command(angle=math.inf))
+    assert output(node).speed_mps == 2.
