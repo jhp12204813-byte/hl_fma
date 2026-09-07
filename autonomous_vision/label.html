@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미션 객체 라벨링</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#151a22;color:#edf2f8;font:15px system-ui,sans-serif}header{padding:16px 24px;background:#202937}h1{font-size:22px;margin:0 0 8px}button,select{padding:9px;margin:3px;background:#303e50;color:white;border:1px solid #61718a;border-radius:5px;cursor:pointer}button.active{outline:3px solid #76bfff}button:disabled{opacity:.45;cursor:wait}.primary{background:#145fa5}main{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;padding:16px}aside{padding:12px;background:#202937}#viewport{height:70vh;overflow:auto;background:#080b11}canvas{display:block;touch-action:none;cursor:crosshair}#filename{overflow-wrap:anywhere;padding:8px}#message{min-height:30px;color:#ffd685;padding:8px}#classes button{display:block;width:100%;text-align:left}#boxes button{display:block;width:100%;text-align:left}.hint{color:#b6c5d9;line-height:1.6;font-size:13px}label{display:block;margin:14px 0}@media(max-width:800px){main{grid-template-columns:1fr}}
+</style>
+<header><h1>미션 객체 라벨링</h1><div>클래스 선택 → 객체를 감싸도록 드래그 → 저장 후 다음</div></header>
+<main><section>
+<div><select id="split"><option value="train">train</option><option value="val">val</option><option value="test">test</option></select>
+<button id="prev">← 이전</button><button id="next">다음 →</button><button id="pending">미완료로 이동</button>
+<select id="zoom" aria-label="이미지 확대"><option value="1">화면 맞춤</option><option value="2">2배 확대</option><option value="4">4배 확대</option></select><span id="progress"></span></div>
+<div id="filename"></div><div id="viewport"><canvas id="canvas"></canvas></div><div id="message" role="status"></div>
+</section><aside><div id="classes"></div>
+<p class="hint"><span id="keyRange">0 / 1 / 2</span>: 클래스 선택<br>기존 박스 변경: 아래 목록에서 선택 후 클래스 클릭<br>잘못 그린 박스: 선택 삭제 후 다시 그리기<br>0번은 일반 차량 신호등의 전체 하우징입니다.<br>1번은 신호차 상단 패널이며, 꺼진 패널도 각각 표시합니다.<br>2번은 신호차 하단의 큰 문자 전광판입니다.<br>신호차 차체 자체에는 박스를 그리지 않습니다.</p>
+<div id="boxes"></div><button id="remove">선택 삭제</button><button id="undo">되돌리기</button>
+<label><input type="checkbox" id="empty"> 모든 대상 객체가 없음을 확인함</label>
+<button id="save" class="primary">저장 후 다음 (Ctrl+Enter)</button>
+<p class="hint">보이는 대상 객체를 모두 라벨링하세요. 실제 사람은 child_dummy가 아닙니다. 신호가 불명확하면 저장하지 않고 다음으로 넘기세요. 빈 라벨은 ‘객체 없음’ 확인 후에만 저장됩니다.</p>
+</aside></main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id), canvas=$('canvas'), ctx=canvas.getContext('2d');
+let catalog, items=[], index=0, boxes=[], selected=-1, classId=0, revision=null, dirty=false, busy=false, loaded=false, start=null, draft=null, history=[];
+let img=new Image();
+const colors=['#ffb454','#5dcaff','#ff5555','#ffe25c','#6fe394','#ec9bff','#b2c5ff','#ff7850','#46d2d2','#ed4444','#80e650','#32b4dc','#64dcb4'];
+const message=text=>$('message').textContent=text;
+async function api(path,opts){const r=await fetch(path,opts), d=await r.json();if(!r.ok)throw Error(d.error||'요청 실패');return d;}
+function counts(){const done=items.filter(x=>x.saved).length;$('progress').textContent=items.length?`${index+1}/${items.length} · 저장 ${done}/${items.length}`:'0/0 · 이미지 없음';}
+function remember(){history.push(JSON.stringify(boxes));dirty=true;}
+function setClass(c){classId=c;if(selected>=0){remember();boxes[selected][0]=c;}render();}
+function render(){
+ $('keyRange').textContent=catalog.shortcuts.map(k=>k.toUpperCase()).join(' / ');
+ ctx.clearRect(0,0,canvas.width,canvas.height);if(loaded)ctx.drawImage(img,0,0,canvas.width,canvas.height);
+ function box(b,active){const [c,x1,y1,x2,y2]=b;ctx.strokeStyle=colors[c];ctx.lineWidth=active?4:2;ctx.strokeRect(x1*canvas.width,y1*canvas.height,(x2-x1)*canvas.width,(y2-y1)*canvas.height);ctx.fillStyle=colors[c];ctx.font='14px sans-serif';const label=catalog.classes[c];const y=Math.max(18,y1*canvas.height);ctx.fillRect(x1*canvas.width,y-18,ctx.measureText(label).width+6,20);ctx.fillStyle='#101010';ctx.fillText(label,x1*canvas.width+3,y-3);}
+ boxes.forEach((b,i)=>box(b,i===selected));if(draft)box(draft,true);
+ $('classes').replaceChildren(...catalog.classes.map((name,c)=>{const b=document.createElement('button');b.textContent=`${c}  ${catalog.descriptions[c]} [${catalog.shortcuts[c].toUpperCase()}]`;b.title=name;b.className=c===classId?'active':'';b.style.borderColor=colors[c];b.onclick=()=>{if(!busy)setClass(c);};return b;}));
+ $('boxes').replaceChildren(...boxes.map((b,i)=>{const el=document.createElement('button');el.textContent=`${i+1}. ${catalog.descriptions[b[0]]}`;el.className=i===selected?'active':'';el.onclick=()=>{selected=selected===i?-1:i;render();};return el;}));
+ $('save').disabled=busy||!loaded;$('empty').disabled=boxes.length>0||busy;
+}
+function resize(){if(!loaded)return;const scale=($('viewport').clientWidth-18)/img.naturalWidth*Number($('zoom').value);canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));render();}
+async function load(i){
+ if(busy)return;if(dirty&&!confirm('저장하지 않은 변경을 버리고 이동할까요?'))return false;
+ busy=true;loaded=false;dirty=false;boxes=[];selected=-1;history=[];start=draft=null;index=i;render();counts();
+ const name=items[index].name;$('filename').textContent=name;message('이미지 불러오는 중…');
+ try{const d=await api('/api/label?image='+encodeURIComponent(name));const nextImage=new Image();await new Promise((resolve,reject)=>{nextImage.onload=resolve;nextImage.onerror=()=>reject(Error('이미지를 읽을 수 없습니다'));nextImage.src='/api/image?image='+encodeURIComponent(name);});img=nextImage;boxes=d.boxes;revision=d.revision;$('empty').checked=d.saved&&boxes.length===0;loaded=true;localStorage.setItem('missionLabelLast',name);message(d.saved?'저장된 라벨입니다. 수정 후 저장할 수 있습니다.':'미완료 이미지입니다.');}
+ catch(e){message(e.message);}finally{busy=false;resize();render();}return true;
+}
+function point(e){const r=canvas.getBoundingClientRect();return [Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))];}
+canvas.onpointerdown=e=>{if(!loaded||busy||e.button!==0)return;selected=-1;start=point(e);canvas.setPointerCapture(e.pointerId);};
+canvas.onpointermove=e=>{if(!start)return;const p=point(e);draft=[classId,Math.min(start[0],p[0]),Math.min(start[1],p[1]),Math.max(start[0],p[0]),Math.max(start[1],p[1])];render();};
+canvas.onpointerup=e=>{if(!start)return;if(draft&&(draft[3]-draft[1])*img.naturalWidth>=2&&(draft[4]-draft[2])*img.naturalHeight>=2){remember();boxes.push(draft);$('empty').checked=false;}start=draft=null;render();};
+canvas.onpointercancel=()=>{start=draft=null;render();};
+$('remove').onclick=()=>{if(busy||selected<0)return;remember();boxes.splice(selected,1);selected=-1;render();};
+$('undo').onclick=()=>{if(busy||!history.length)return;boxes=JSON.parse(history.pop());selected=-1;dirty=true;render();};
+$('zoom').onchange=resize;window.addEventListener('resize',resize);
+$('prev').onclick=()=>load(Math.max(0,index-1));$('next').onclick=()=>load(Math.min(items.length-1,index+1));
+$('pending').onclick=()=>{const i=items.findIndex(x=>!x.saved);if(i<0)message('이 split은 모두 저장됐습니다.');else load(i);};
+$('split').onchange=async()=>{if(busy){if(items.length)$('split').value=items[0].name.split('/')[0];return;}if(dirty&&!confirm('저장하지 않은 변경을 버릴까요?')){if(items.length)$('split').value=items[0].name.split('/')[0];return;}dirty=false;items=catalog.items.filter(x=>x.name.startsWith($('split').value+'/'));if(items.length)await load(0);else {loaded=false;boxes=[];$('filename').textContent=`${$('split').value}: 이미지 0장`;canvas.width=1;canvas.height=1;counts();render();message('이 split에는 이미지가 없습니다. 별도의 주행 세션을 추가해야 합니다.');}};
+$('empty').onchange=()=>{dirty=true;};
+$('save').onclick=async()=>{
+ if(busy||!loaded)return;if(!boxes.length&&!$('empty').checked){message('객체가 없다면 ‘대상 객체가 없음’을 먼저 확인하세요.');return;}
+ busy=true;render();try{const d=await api('/api/label',{method:'POST',headers:{'Content-Type':'application/json','X-Label-Token':catalog.token},body:JSON.stringify({image:items[index].name,boxes,revision,confirmed_empty:$('empty').checked})});revision=d.revision;items[index].saved=true;dirty=false;message('저장 완료');counts();busy=false;if(index<items.length-1)await load(index+1);}catch(e){message(e.message);}finally{busy=false;render();}
+};
+document.onkeydown=e=>{if(e.target.matches('input,select,textarea')||busy)return;if(catalog && !e.ctrlKey && !e.metaKey && !e.altKey){const id=catalog.shortcuts.indexOf(e.key.toLowerCase());if(id>=0)setClass(id);}if(e.key==='Delete')$('remove').click();if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();$('save').click();}};
+window.onbeforeunload=e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}};
+// A whole session may move between splits; retain the last session/image then.
+(async()=>{try{catalog=await api('/api/catalog');for(const option of $('split').options){const count=catalog.items.filter(x=>x.name.startsWith(option.value+'/')).length;option.textContent=`${option.value} (${count}장)`;option.disabled=count===0;}const last=localStorage.getItem('missionLabelLast');const entry=catalog.items.find(x=>x.name===last)||(last&&catalog.items.find(x=>x.name.split('/').slice(1).join('/')===last.split('/').slice(1).join('/')));$('split').value=entry?entry.name.split('/')[0]:'train';items=catalog.items.filter(x=>x.name.startsWith($('split').value+'/'));if(!items.length)throw Error('이미지가 없습니다');await load(Math.max(0,items.findIndex(x=>x.name===(entry?entry.name:last))));}catch(e){message(e.message);}})();
+</script>
+</html>

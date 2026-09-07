@@ -1,0 +1,16 @@
+__pycache__/
+.pytest_cache/
+
+# Local recordings, labels, training caches, and generated checkpoints/results.
+dataset_detection/images/
+dataset_detection/labels/
+dataset_detection/annotations/
+dataset_detection/draft_labels/
+dataset_detection/label_history/
+dataset_detection/session_manifest.json
+dataset_detection/**/*.cache
+dataset_sign_cls/
+runs/
+
+models/*
+!models/.gitkeep

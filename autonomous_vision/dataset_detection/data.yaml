@@ -1,0 +1,10 @@
+# Label the full object exterior, never individual lamps or sign symbols.
+# Omitting `path` makes Ultralytics resolve these paths from this YAML folder.
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: traffic_light
+  1: sign_panel
+  2: message_board
