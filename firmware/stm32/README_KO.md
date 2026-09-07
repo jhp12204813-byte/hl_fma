@@ -157,6 +157,11 @@ ADC 증가가 LEFT, 감소가 RIGHT이다. 중앙 2132는 직진으로 확인되
 `STEERING_PWM=520`, timer ARR(`PWM_PERIOD`)=799로 주기는 800 count,
 즉 duty는 `520/800=65%`이다.
 ROS vehicle_controller와 bridge 및 ADC target을 만드는 도구도 이 운용값을 사용한다.
-물리 조향각 rad 끝점은 미측정이므로 ROS angle calibration은 disabled/NaN을
-유지한다. REP-103 양의 각도=LEFT, 음의 각도=RIGHT이며, calibration 없이
-nonzero angle을 요청하면 기존 fail-safe STOP을 유지한다.
+실측 운용 조향각은 RIGHT=-17.5° (약 -0.3054 rad)/ADC 150,
+CENTER=0° (0 rad)/ADC 2132, LEFT=+16.1° (약 +0.2810 rad)/ADC 3950이다.
+ROS vehicle_controller는 이 비대칭 angle calibration을 기본 활성화한다.
+REP-103 양의 각도=LEFT, 음의 각도=RIGHT이며 각 구간은 선형 보간한다.
+유한 범위 밖 각도는 운용 endpoint로 clamp하고, NaN/Inf·잘못된 calibration·
+emergency·timeout은 기존 fail-safe STOP을 유지한다. 명시적으로 calibration을
+끄면 중앙 허용 오차(0.001 rad)를 벗어난 nonzero angle은 계속 STOP 처리한다.
+이 각도 설정은 ROS 변환 계층에만 적용되며 STM32 firmware 변경은 없다.

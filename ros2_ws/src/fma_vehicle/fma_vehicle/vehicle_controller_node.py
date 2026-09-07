@@ -1,7 +1,7 @@
 """Convert high-level drive requests to vehicle commands; no hardware access.
 
-Parameters are configured at startup. Angle endpoints remain unconfigured until
-measured on the vehicle. Speed magnitude cannot request numeric speed control.
+Parameters are configured at startup with measured asymmetric angle endpoints.
+Speed magnitude cannot request numeric speed control.
 """
 
 from dataclasses import dataclass
@@ -20,12 +20,12 @@ from fma_interfaces.msg import DriveCommand, VehicleCommand
 @dataclass(frozen=True)
 class ConversionConfig:
     speed_deadband_mps: float = 0.01
-    steering_calibration_enabled: bool = False
+    steering_calibration_enabled: bool = True
     steering_right_adc: int = 150
     steering_center_adc: int = 2132
     steering_left_adc: int = 3950
-    steering_right_angle_rad: float = math.nan
-    steering_left_angle_rad: float = math.nan
+    steering_right_angle_rad: float = -0.3054
+    steering_left_angle_rad: float = 0.2810
     steering_zero_tolerance_rad: float = 0.001
 
 
