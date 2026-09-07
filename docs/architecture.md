@@ -202,20 +202,29 @@ The current high-level states match the constants in
 
 | Value | Mission state | Intent |
 |---:|---|---|
-| 0 | `START` | Initial state |
-| 1 | `NORMAL_DRIVE` | Normal lane-following operation |
-| 2 | `STOP_LINE` | Stop-line mission |
-| 3 | `S_CURVE` | S-curve obstacle mission |
-| 4 | `TRAFFIC_LIGHT` | Traffic-light intersection mission |
-| 5 | `PERPENDICULAR_PARKING` | Perpendicular parking mission |
-| 6 | `EMERGENCY_ZONE` | Emergency-stop zone behavior |
-| 7 | `PARALLEL_PARKING` | Parallel parking mission |
-| 8 | `LANE_CONTROL` | Lane-control-signal mission |
-| 9 | `FINISH` | End-of-run state |
+| 0 | `START` | Start |
+| 1 | `NORMAL_DRIVE` | Normal Drive |
+| 2 | `RAMP` | Ramp |
+| 3 | `INTERSECTION_STRAIGHT_1` | Intersection Straight 1 |
+| 4 | `S_CURVE` | S Curve |
+| 5 | `INTERSECTION_STRAIGHT_2` | Intersection Straight 2 |
+| 6 | `PERPENDICULAR_PARKING` | Perpendicular Parking |
+| 7 | `INTERSECTION_LEFT` | Intersection Left |
+| 8 | `CHILD_DUMMY` | Child Dummy |
+| 9 | `PARALLEL_PARKING` | Parallel Parking |
+| 10 | `INTERSECTION_RIGHT` | Intersection Right |
+| 11 | `SIGNAL_CAR` | Signal Car |
+| 12 | `LANE_CHANGE` | Lane Change |
+| 13 | `FINISH` | Terminal state |
 
-This is a state vocabulary, not a state-machine implementation. Transition
-conditions, completion signaling, retry/failure behavior, and timeouts remain
-to be designed before code is written.
+`mission_manager` loads the 11 ordered GPS targets from
+`fma_mission/config/waypoints.yaml` (default activation radius 3.0 m each).
+START transitions to NORMAL_DRIVE. Only the current target is checked using
+Haversine distance; active missions ignore GPS. `/mission/status` reports from
+mission nodes advance the course only when the mission matches and completed=true.
+WP10 chains SIGNAL_CAR to LANE_CHANGE without a new GPS check. WP11 enters terminal
+FINISH. Stop lines and traffic lights are perception inputs, not standalone missions.
+GPS only triggers missions; maneuver nodes and their timeout/retry policies are not implemented.
 
 ## 9. QoS architecture principles
 
@@ -259,10 +268,9 @@ the following gaps or ambiguities:
    input contract.
 2. `/mission/zone` has no message type. Waypoint-manager output cannot be
    implemented without choosing one.
-3. `/mission/current` and `/mission/status` can represent overall state with
-   `MissionState`, but the direction and semantics of individual mission
-   completion reporting are not defined. Multiple mission publishers on one
-   status topic would be ambiguous without ownership rules.
+3. `/mission/current` is published by mission_manager; mission nodes report
+   matching completed missions on `/mission/status`. Status has no execution ID;
+   authentication and restart/replay handling remain future work.
 4. `sensor_msgs/msg/Image` does not by itself fix depth scale; RealSense depth
    encoding and conversion to meters must be specified in configuration or the
    perception contract.
@@ -287,8 +295,7 @@ The following items remain TBD and must not be inferred by node implementations:
 - Steering feedback format and raw-ADC/angle conversion location
 - Speed-calculation location
 - `/mission/zone` message type
-- Individual mission completion signaling
-- Mission transition, retry, failure, and timeout behavior
+- Mission maneuver retry, failure, and timeout behavior
 - Final TF frame names and TF publisher ownership
 - Actual sensor-driver topic remapping
 - Depth-image encoding and scale
