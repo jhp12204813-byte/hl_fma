@@ -51,7 +51,7 @@ class STM32BridgeNode(Node):
     def __init__(self):
         super().__init__('stm32_bridge_node')
         defaults = {
-            'port': '/dev/ttyACM0', 'baudrate': 115200,
+            'port': '/dev/fma_stm32', 'baudrate': 115200,
             'vehicle_command_topic': '/vehicle/command',
             'feedback_topic': '/vehicle/feedback',
             'drive_refresh_hz': 5.0, 'steering_refresh_hz': 10.0,

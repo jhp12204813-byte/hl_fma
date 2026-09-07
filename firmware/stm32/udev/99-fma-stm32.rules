@@ -1,0 +1,1 @@
+SUBSYSTEM=="tty", KERNEL=="ttyACM*", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374b", ATTRS{serial}=="0671FF505055877267173020", SYMLINK+="fma_stm32", GROUP="dialout", MODE="0660"
