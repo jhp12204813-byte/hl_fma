@@ -41,6 +41,35 @@ python autonomous_vision/main.py --source path/to/video.mp4 \
 UNKNOWN이나 검출 소실을 통행 허가로 간주하지 마세요.
 현재 ROS2 토픽 발행과 조향/제동 연결은 구현되어 있지 않습니다.
 
+## 장애물 후보 모델
+
+신호 detector와 별개인 2-class YOLO11n 후보 모델도 포함합니다.
+
+```text
+models/obstacle_detector_candidate.pt
+0 child_dummy
+1 vehicle_obstacle
+SHA256 77de8602865021736366e658f8c9dfd07a57e39ea859c34b7d6e3a077bd4169c
+```
+
+두 클래스는 제어에서 모두 `OBSTACLE_AVOIDANCE` 후보로 취급합니다. 클래스가 서로
+바뀌어도 공통 장애물 검출에는 성공한 것으로 판단합니다. FN을 줄이기 위해 단일
+confidence 0.25로 제거하지 말고 0.01~0.03의 저신뢰 후보를 유지한 뒤, 정렬된 D435i
+Depth, 주행 corridor, 프레임 연속성으로 배경 FP를 제거하는 구조가 권장됩니다.
+confidence 0.01 자체를 곧바로 회피 명령으로 연결하면 안 됩니다.
+
+현재 clean val 28장 기준 공통 장애물 recall은 confidence 0.01에서 0.964
+(TP 27/FP 762/FN 1), 0.03에서 0.750(TP 21/FP 115/FN 7)입니다. 데이터가 작고
+vehicle val bbox가 2개뿐이므로 실차 배포 모델이 아니라 **통합 시험 후보**입니다.
+상세 학습/비교 결과는 `OBSTACLE_MODEL_REPORT.md`를 확인하세요.
+
+학습 데이터, 라벨, 영상, run 전체는 용량과 촬영 데이터 보호를 위해 Git에 넣지
+않았습니다. `train_obstacles.py`, `evaluate_obstacles.py`,
+`evaluate_avoidance_priority.py`가 재학습 및 FN 우선 평가 코드입니다. 기존
+`main.py`는 신호용 3-class weight를 사용하므로 이 2-class weight로 바꾸지 마세요.
+장애물 detector는 별도 인스턴스로 통합해야 합니다. D435i Depth와 ROS2 제어 연결은
+아직 구현하지 않았습니다.
+
 ## 제공 모델과 검증 범위
 
 - detector: YOLO11n, traffic_light/sign_panel/message_board, 50 epoch 학습.

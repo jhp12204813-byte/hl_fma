@@ -12,7 +12,14 @@ dataset_detection/**/*.cache
 dataset_sign_cls/
 runs/
 
+# Obstacle images/labels stay local; only code, reports, and the reviewed
+# candidate checkpoint are shared with the team.
+dataset_obstacles/
+dataset_obstacles_childclean/
+dataset_obstacles_mybox2_review/
+
 models/*
 !models/.gitkeep
 !models/detector_best.pt
 !models/sign_classifier_best.pt
+!models/obstacle_detector_candidate.pt

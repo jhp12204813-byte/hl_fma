@@ -12,6 +12,10 @@
 ROS2와 차량 제어에 의존하지 않는 standalone perception 구현입니다. 프레임마다
 하나의 YOLO detection 모델을 한 번만 실행합니다.
 
+장애물용 `models/obstacle_detector_candidate.pt`는 아래 신호용 detector와 클래스
+구조가 다른 별도 2-class 모델입니다. 동일 `main.py` weight로 교체하지 말고
+`TEAM_HANDOFF.md`와 `OBSTACLE_MODEL_REPORT.md`의 통합 주의사항을 먼저 확인하세요.
+
 ```text
 0 traffic_light   가로형 4구 일반 차량 신호등 전체
 1 sign_panel      신호차 상단 LED 패널 한 개(프레임당 최대 3개)
