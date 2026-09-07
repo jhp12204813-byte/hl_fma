@@ -4,7 +4,7 @@
 #define HSI_CLOCK_HZ          16000000U
 #define UART_BAUDRATE         115200U
 #define PWM_PERIOD            799U       /* 16 MHz / 800 = 20 kHz */
-#define DRIVE_PWM             240U       /* 30% */
+#define DRIVE_PWM             120U       /* 15% */
 #define STEERING_PWM          520U       /* 65% */
 #define STEERING_LEFT_TARGET  3950U      /* physical end: approximately 4095 */
 #define STEERING_CENTER       2132U

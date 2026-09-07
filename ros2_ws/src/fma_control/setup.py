@@ -18,6 +18,7 @@ setup(
     license='TODO',
     tests_require=['pytest'],
     entry_points={'console_scripts': [
+        'keyboard_teleop = fma_control.keyboard_teleop_node:main',
         'command_arbiter = fma_control.command_arbiter_node:main',
     ]},
 )
