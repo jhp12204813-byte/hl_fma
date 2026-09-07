@@ -122,8 +122,13 @@ settle that input-side contract.
 `DriveCommand.steering_angle_rad` to `VehicleCommand.drive_state` and
 `VehicleCommand.steering_adc`. The bridge only translates these
 low-level values to `W`/`S`/`X`/`Tdddd` serial commands. Current firmware has no
-numeric speed command, and physical steering-angle calibration is incomplete;
-this interface adds no speed target, PWM, motor percentage, or steering angle.
+numeric speed command; this interface adds no speed target, PWM, motor percentage,
+or steering angle. Measured controller calibration is enabled by default:
+RIGHT=-0.3054 rad (-17.5 degrees)/ADC 150, CENTER=0 rad/ADC 2132,
+LEFT=+0.2810 rad (+16.1 degrees)/ADC 3950. Positive angles steer left and negative
+angles steer right (REP-103). Finite out-of-range angles clamp to the operational
+endpoints. These safe targets differ from physical ADC endpoints (right ≈7,
+left ≈4095).
 
 The implemented bridge consumes `/vehicle/command` and publishes
 `/vehicle/feedback`. It validates drive state and steering ADC range, and sends

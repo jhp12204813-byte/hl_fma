@@ -27,14 +27,14 @@ def test_invalid_speed(speed):
 
 
 @pytest.mark.parametrize('angle', [0.0, 0.001, -0.001])
-def test_uncalibrated_center(angle):
+def test_default_center_tolerance(angle):
     assert steering_angle_to_adc(angle) == 2132
 
 
 @pytest.mark.parametrize('angle', [0.01, -0.01, math.nan, math.inf, -math.inf])
 def test_uncalibrated_reject(angle):
     with pytest.raises(ValueError):
-        steering_angle_to_adc(angle)
+        steering_angle_to_adc(angle, ConversionConfig(steering_calibration_enabled=False))
 
 
 # Synthetic mathematical fixtures only: NOT measured vehicle calibration.
@@ -136,7 +136,7 @@ def test_topic_parameters(node_factory):
 @pytest.mark.parametrize('speed,angle,emergency', [
     (math.nan, math.nan, True), (1.0, 0.1, True), (math.nan, 0.0, False),
     (math.inf, 0.0, False), (1.0, math.nan, False), (1.0, math.inf, False),
-    (1.0, 0.1, False)])
+    (-math.inf, 0.0, False), (1.0, -math.inf, False)])
 def test_node_fail_safe(node_factory, speed, angle, emergency):
     node = node_factory.make()
     node.on_command(request(speed, angle, emergency))
@@ -145,7 +145,7 @@ def test_node_fail_safe(node_factory, speed, angle, emergency):
 
 
 def test_node_invalid_enabled_calibration(node_factory):
-    node = node_factory.make(steering_calibration_enabled=True)
+    node = node_factory.make(steering_calibration_enabled=True, steering_right_angle_rad=math.nan)
     node.on_command(request())
     assert_stop(output(node))
 
@@ -172,9 +172,53 @@ def test_invalid_input_does_not_refresh_timeout(node_factory):
     node = node_factory.make()
     node.on_command(request())
     node_factory.now[0] = 10.4
-    node.on_command(request(angle=0.1))
+    node.on_command(request(angle=math.nan))
     assert_stop(output(node))
     assert node.last_valid_command == 10.0
     node_factory.now[0] = 10.5
     node.check_timeout()
     assert_stop(output(node))
+
+
+@pytest.mark.parametrize('angle,adc', [
+    (-0.3054, 150), (0.0, 2132), (0.2810, 3950),
+    (-0.1527, 1141), (0.1405, 3041), (-1.0, 150), (1.0, 3950)])
+def test_measured_default_mapping(angle, adc):
+    config = ConversionConfig()
+    assert config.steering_calibration_enabled
+    assert config.steering_right_angle_rad == -0.3054
+    assert config.steering_left_angle_rad == 0.2810
+    assert steering_angle_to_adc(angle) == adc
+
+
+@pytest.mark.parametrize('speed,state', [(1.0, VehicleCommand.DRIVE_FORWARD),
+                                       (0.0, VehicleCommand.DRIVE_STOP)])
+@pytest.mark.parametrize('angle,adc', [(-0.3054, 150), (0.0, 2132), (0.2810, 3950),
+                                     (-0.1527, 1141), (0.1405, 3041),
+                                     (-1.0, 150), (1.0, 3950)])
+def test_node_measured_mapping_and_zero_speed(node_factory, speed, state, angle, adc):
+    node = node_factory.make()
+    node.on_command(request(speed, angle))
+    msg = output(node)
+    assert (msg.drive_state, msg.steering_adc, msg.emergency_stop) == (state, adc, False)
+    assert node.last_valid_command == 10.0
+
+
+def test_explicit_disabled_calibration(node_factory):
+    node = node_factory.make(steering_calibration_enabled=False)
+    node.on_command(request())
+    assert output(node).steering_adc == 2132
+    for angle in (-0.1527, 0.1405):
+        node.on_command(request(angle=angle))
+        assert_stop(output(node))
+
+
+@pytest.mark.parametrize('parameters', [
+    {'steering_right_angle_rad': 0.3054}, {'steering_right_angle_rad': 0.0},
+    {'steering_left_angle_rad': -0.2810}, {'steering_left_angle_rad': 0.0},
+    {'steering_left_angle_rad': math.inf}, {'steering_left_angle_rad': math.nan}])
+def test_node_invalid_angle_parameters(node_factory, parameters):
+    node = node_factory.make(**parameters)
+    node.on_command(request(angle=0.1405))
+    assert_stop(output(node))
+    assert node.last_valid_command is None

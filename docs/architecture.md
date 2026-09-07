@@ -155,13 +155,19 @@ This does not imply a latched emergency feature in firmware.
 
 Measured physical steering ADC endpoints are approximately RIGHT=7 and LEFT=4095.
 Operational safe targets are RIGHT=150, CENTER=2132, LEFT=3950 (ADC increases left).
-Firmware steering PWM is 520/800 = 65%. Physical angle endpoints in radians are
-not measured; `vehicle_controller` retains disabled/NaN angle calibration and
-rejects nonzero angles until calibrated. These ADC limits do not change topics,
-message definitions, serial packet shape, or raw telemetry feedback.
+Firmware steering PWM is 520/800 = 65%. Measured operational angle calibration
+is enabled by default in `vehicle_controller`: RIGHT=-17.5 degrees (-0.3054 rad)
+at ADC 150, CENTER=0 rad at ADC 2132, LEFT=+16.1 degrees (+0.2810 rad) at ADC 3950.
+REP-103 positive is left, negative is right; the measured asymmetry is preserved.
+Each side uses piecewise linear interpolation and integer rounding, retaining
+the 0.001 rad center tolerance. Finite angles beyond these endpoints clamp to
+150/3950; NaN/Inf, invalid calibration, emergency and timeout retain fail-safe STOP.
+Explicitly disabling calibration still rejects nonzero angles outside center tolerance.
+At zero speed the controller publishes DRIVE_STOP with the calculated ADC;
+the bridge continues to suppress steering TX during STOP.
+Topics, message definitions, serial packet shape and raw telemetry are unchanged.
 
-Current firmware has no numeric speed command. Physical steering-angle
-calibration is also incomplete. `VehicleCommand` therefore contains neither
+Current firmware has no numeric speed command. `VehicleCommand` contains neither
 physical speed/angle targets nor PWM/motor-percentage fields; conversion from
 the high-level `DriveCommand` remains `vehicle_controller`'s responsibility.
 
