@@ -1,9 +1,11 @@
 # Autonomous Vision
 
 이 브랜치는 신호 인식 소스, 학습/라벨링 도구와 테스트를 제공합니다.
-촬영 데이터, 라벨, 학습 결과 및 모델 가중치는 Git에 포함하지 않습니다.
-추론 전에 학습한 `detector_best.pt`와 `sign_classifier_best.pt`를
-`autonomous_vision/models/`에 준비하세요. 아래 학습 명령으로 생성할 수도 있습니다.
+학습한 `detector_best.pt`와 `sign_classifier_best.pt`는
+`autonomous_vision/models/`에 포함되어 바로 추론에 사용할 수 있습니다.
+촬영 원본, 데이터셋과 생성된 결과 영상은 포함하지 않습니다.
+팀원의 실행 및 차선 인식 연동 방법은 [TEAM_HANDOFF.md](TEAM_HANDOFF.md),
+학습·평가 이력은 [DEBUG_REPORT.md](DEBUG_REPORT.md)를 참고하세요.
 현재 모델은 시험 단계이며, 일반 도로의 작은 신호등과 패널 오검출에 대한
 추가 검증이 필요합니다. ROS2 및 차량 제어 연결은 포함하지 않습니다.
 

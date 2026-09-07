@@ -14,3 +14,5 @@ runs/
 
 models/*
 !models/.gitkeep
+!models/detector_best.pt
+!models/sign_classifier_best.pt
