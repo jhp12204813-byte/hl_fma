@@ -1,0 +1,217 @@
+camera_name: C920
+image_width: 640
+image_height: 480
+coordinate_convention:
+  x: vehicle lateral, positive right
+  y: vehicle forward, positive forward
+  unit: meter
+  origin: vehicle center reference
+homography_image_to_ground:
+- - -0.010202247372538362
+  - -0.00014676582862186642
+  - 3.4787287483634786
+- - -0.0006383491749046321
+  - 0.009219305738592571
+  - -7.50441396588583
+- - 4.314150516132016e-05
+  - -0.011756083382627378
+  - 1.0
+homography_ground_to_image:
+- - -95.10591832036546
+  - -49.055155214513604
+  - -37.28249968992881
+- - 0.3787198041087669
+  - -12.462371661391341
+  - -94.84025941393271
+- - 0.00855527406184511
+  - -0.14439236716473278
+  - -0.11334157454740415
+homography_ground_to_bev:
+- - 100.0
+  - 0.0
+  - 300.0
+- - 0.0
+  - -100.0
+  - 600.0
+- - 0.0
+  - 0.0
+  - 1.0
+homography_image_to_bev:
+- - -1.0072822857054402
+  - -3.5415015976504
+  - 647.8728748363478
+- - 0.0897198205872553
+  - -7.975580603435684
+  - 1350.441396588583
+- - 4.314150516132016e-05
+  - -0.011756083382627378
+  - 1.0
+bev:
+  half_width_m: 3.0
+  near_m: 0.7
+  far_m: 6.0
+  resolution_m: 0.01
+  calibrated_forward_max_m: 4.0
+  width_px: 600
+  height_px: 530
+reprojection_error_m:
+  mean: 0.02025707475286866
+  median: 0.01878370884114567
+  max: 0.03141793752520405
+calibration_points:
+- session: '20260911_211455'
+  frame_index: 59
+  image_uv_px:
+  - 334.0
+  - 297.0
+  ground_xy_m:
+  - 0.0
+  - 2.0
+  reprojection_xy_m:
+  - -0.011137275763202292
+  - 2.0101704812045273
+  error_m: 0.015082360536642043
+  ransac_inlier: true
+  aligned_image_uv_px:
+  - 334.0
+  - 297.0
+- session: '20260911_211455'
+  frame_index: 59
+  image_uv_px:
+  - 334.0
+  - 242.0
+  ground_xy_m:
+  - 0.0
+  - 3.0
+  reprojection_xy_m:
+  - -0.01948078107557833
+  - 2.99719313332161
+  error_m: 0.01968195447268556
+  ransac_inlier: true
+  aligned_image_uv_px:
+  - 334.0
+  - 242.0
+- session: '20260911_211455'
+  frame_index: 59
+  image_uv_px:
+  - 334.0
+  - 209.0
+  ground_xy_m:
+  - 0.0
+  - 4.0
+  reprojection_xy_m:
+  - -0.028076893261805194
+  - 4.014098753955681
+  error_m: 0.03141793752520405
+  ransac_inlier: true
+  aligned_image_uv_px:
+  - 334.0
+  - 209.0
+- session: '20260911_211722'
+  frame_index: 48
+  image_uv_px:
+  - 97.0
+  - 292.0
+  ground_xy_m:
+  - -1.0
+  - 2.0
+  reprojection_xy_m:
+  - -0.9935825581068237
+  - 1.9750245695695288
+  error_m: 0.02578673468354616
+  ransac_inlier: true
+  aligned_image_uv_px:
+  - 97.4694464677755
+  - 294.40793041842545
+- session: '20260911_211722'
+  frame_index: 48
+  image_uv_px:
+  - 162.0
+  - 236.0
+  ground_xy_m:
+  - -1.0
+  - 3.0
+  reprojection_xy_m:
+  - -0.9946822840773935
+  - 3.012790090209983
+  error_m: 0.013851516531161616
+  ransac_inlier: false
+  aligned_image_uv_px:
+  - 162.4694464677755
+  - 238.40793041842542
+- session: '20260911_211722'
+  frame_index: 48
+  image_uv_px:
+  - 200.0
+  - 205.0
+  ground_xy_m:
+  - -1.0
+  - 4.0
+  reprojection_xy_m:
+  - -0.9813893023436525
+  - 4.001119755976367
+  error_m: 0.018644353587684053
+  ransac_inlier: false
+  aligned_image_uv_px:
+  - 200.4694464677755
+  - 207.40793041842542
+- session: '20260911_211856'
+  frame_index: 35
+  image_uv_px:
+  - 585.0
+  - 298.0
+  ground_xy_m:
+  - 1.0
+  - 2.0
+  reprojection_xy_m:
+  - 1.0077356720449406
+  - 2.0193966743807032
+  error_m: 0.020882327432973215
+  ransac_inlier: true
+  aligned_image_uv_px:
+  - 585.8760306550059
+  - 301.85060757917654
+- session: '20260911_211856'
+  frame_index: 35
+  image_uv_px:
+  - 521.0
+  - 242.0
+  ground_xy_m:
+  - 1.0
+  - 3.0
+  reprojection_xy_m:
+  - 1.007461672358915
+  - 2.9827619269221546
+  error_m: 0.01878370884114567
+  ransac_inlier: true
+  aligned_image_uv_px:
+  - 521.8760306550059
+  - 245.85060757917654
+- session: '20260911_211856'
+  frame_index: 35
+  image_uv_px:
+  - 483.0
+  - 208.0
+  ground_xy_m:
+  - 1.0
+  - 4.0
+  reprojection_xy_m:
+  - 1.0131516130871911
+  - 3.987444183365475
+  error_m: 0.018182779164775592
+  ransac_inlier: true
+  aligned_image_uv_px:
+  - 483.87603065500593
+  - 211.85060757917654
+session_translation_to_reference_px:
+  '20260911_211455':
+  - 0.0
+  - 0.0
+  '20260911_211722':
+  - 0.46944646777549653
+  - 2.4079304184254244
+  '20260911_211856':
+  - 0.8760306550059597
+  - 3.8506075791765286
+calibration_method: 9 ground points from 3 static C920 sessions; per-session image
+  translation aligned to reference session
