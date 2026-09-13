@@ -17,7 +17,7 @@ class StopLineConfig:
 
     # Physical stop-line thickness.
     min_thickness_m: float = 0.04
-    max_thickness_m: float = 0.30
+    max_thickness_m: float = 0.55
 
     # Only bridge small cracks in painted lines.
     continuity_close_m: float = 0.08
