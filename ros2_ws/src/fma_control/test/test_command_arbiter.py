@@ -308,3 +308,18 @@ def test_manual_timeout_override_and_invalid_fallback(env):
     node.on_manual(command(3.))
     node.on_manual(command(angle=math.inf))
     assert output(node).speed_mps == 2.
+
+
+def test_manual_pwm_passthrough_and_timeout(env):
+    node = env.make()
+    msg = command()
+    msg.pwm_control, msg.drive_pwm = True, 799
+    node.on_manual(msg)
+    result = output(node)
+    assert result.pwm_control and result.drive_pwm == 799
+    env.now[0] += .5
+    assert_stop(output(node))
+    assert output(node).drive_pwm == 0
+    msg.drive_pwm = 800
+    node.on_manual(msg)
+    assert_stop(output(node))

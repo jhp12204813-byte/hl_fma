@@ -1,4 +1,4 @@
-"""Terminal manual-command source; +/-0.2 means direction, not speed regulation."""
+"""Terminal duty-percentage manual source; speed sign indicates direction, not regulation."""
 from dataclasses import dataclass
 import math
 import os
@@ -20,6 +20,7 @@ from fma_interfaces.msg import DriveCommand, VehicleFeedback
 @dataclass
 class TeleopState:
     drive: str = 'STOP'
+    throttle_percent: int = 0
     steering: float = 0.0
     quit_requested: bool = False
 
@@ -27,10 +28,16 @@ class TeleopState:
         if self.quit_requested:
             return
         key = key.lower()
-        if key == 'w':
-            self.drive = 'FORWARD'
-        elif key == 's':
-            self.drive = 'REVERSE'
+        if key in ('w', 's'):
+            requested = 'FORWARD' if key == 'w' else 'REVERSE'
+            if self.throttle_percent == 0:
+                self.drive, self.throttle_percent = requested, 5
+            elif self.drive == requested:
+                self.throttle_percent = min(100, self.throttle_percent + 5)
+            else:
+                self.throttle_percent = max(0, self.throttle_percent - 5)
+                if self.throttle_percent == 0:
+                    self.drive = 'STOP'
         elif key == 'a':
             self.steering = min(0.2810, self.steering + 0.05)
         elif key == 'd':
@@ -39,12 +46,24 @@ class TeleopState:
             self.steering = 0.0
         elif key in (' ', 'x', 'q', '\x03'):
             self.drive = 'STOP'
+            self.throttle_percent = 0
             self.quit_requested = key in ('q', '\x03')
 
     @property
     def speed_mps(self):
         # The controller uses the sign only; actual speed comes from feedback.
         return {'STOP': 0.0, 'FORWARD': 0.2, 'REVERSE': -0.2}[self.drive]
+
+
+def throttle_to_ccr(throttle_percent):
+    """Convert only at the manual publisher boundary; wire units remain counts.
+
+    Current contract: DRIVE_PWM_MAX = ARR = 799, so one period is 800 counts.
+    Round to nearest count and retain the firmware's safe CCR ceiling at 100%.
+    """
+    percent = max(0, min(100, throttle_percent))
+    period_counts = DriveCommand.DRIVE_PWM_MAX + 1
+    return min(DriveCommand.DRIVE_PWM_MAX, (percent * period_counts + 50) // 100)
 
 
 def speed_display(speed_mps):
@@ -74,6 +93,8 @@ class KeyboardTeleopNode(Node):
         msg.speed_mps = self.state.speed_mps
         msg.steering_angle_rad = self.state.steering
         msg.emergency_stop = False
+        msg.pwm_control = True
+        msg.drive_pwm = throttle_to_ccr(self.state.throttle_percent)
         self.publisher.publish(msg)
 
     def handle_key(self, key):
@@ -83,6 +104,7 @@ class KeyboardTeleopNode(Node):
 
     def stop_repeatedly(self):
         self.state.drive = 'STOP'
+        self.state.throttle_percent = 0
         self.state.quit_requested = True
         try:
             self.timer.cancel()
@@ -107,11 +129,12 @@ class KeyboardTeleopNode(Node):
         return (
             '========================================\n'
             ' FMA KEYBOARD TELEOP\n'
-            'W: 전진  S: 후진  A: 좌조향  D: 우조향\n'
+            'W: 전진 +5%p / 후진 -5%p  S: 반대  A: 좌조향  D: 우조향\n'
             'C: 중앙  SPACE/X: 정지  Q/Ctrl+C: 정지 후 종료\n'
             '다른 /cmd/manual publisher를 실행하지 마세요. 종료 후 timeout이면 자율주행이 재개될 수 있습니다.\n'
             'STOP 상태에서는 실제 조향이 움직이지 않을 수 있음\n'
-            '+/-0.2 명령은 방향 표시이며 실제 속도 목표가 아닙니다.\n'
+            'Throttle은 duty %이며 실제 속도 목표가 아닙니다.\n'
+            f'THROTTLE TARGET : {self.state.throttle_percent}%\n'
             f'DRIVE TARGET : {self.state.drive}\n'
             f'STEER TARGET : {self.state.steering:+.4f} rad '
             f'({math.degrees(self.state.steering):+.1f} deg)\n'

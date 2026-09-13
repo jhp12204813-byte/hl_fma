@@ -4,6 +4,7 @@
 #define HSI_CLOCK_HZ          16000000U
 #define UART_BAUDRATE         115200U
 #define PWM_PERIOD            799U       /* 16 MHz / 800 = 20 kHz */
+#define DRIVE_PWM_MAX         PWM_PERIOD /* preserve ARR; never request CCR > ARR */
 #define DRIVE_PWM             120U       /* 15% */
 #define STEERING_PWM          520U       /* 65% */
 #define STEERING_LEFT_TARGET  3950U      /* physical end: approximately 4095 */
@@ -31,7 +32,7 @@ static uint32_t last_drive_command_ms = 0U;
 static uint32_t last_steering_command_ms = 0U;
 static uint8_t steering_active = 0U;
 static int32_t current_speed_mm_s = 0;
-typedef enum { PARSER_IDLE, PARSER_STEERING } parser_state_t;
+typedef enum { PARSER_IDLE, PARSER_STEERING, PARSER_FORWARD_PWM, PARSER_REVERSE_PWM } parser_state_t;
 static parser_state_t parser_state = PARSER_IDLE;
 static uint32_t steering_packet_last_ms = 0U;
 static uint8_t steering_packet_digits = 0U;
@@ -314,10 +315,24 @@ static void encoder_init(void)
   TIM4->CR1 = TIM_CR1_CEN;
 }
 
-static void drive_set(drive_state_t state)
+static void drive_set_pwm(drive_state_t state, uint16_t pwm)
 {
+  if (pwm > DRIVE_PWM_MAX)
+  {
+    pwm = DRIVE_PWM_MAX;
+  }
+  if (pwm == 0U)
+  {
+    state = DRIVE_STOP;
+  }
+  if (state == DRIVE_STOP)
+  {
+    pwm = 0U;
+  }
   if (state == drive_state)
   {
+    TIM2->CCR2 = pwm;
+    TIM3->CCR1 = pwm;
     return;
   }
 
@@ -331,16 +346,22 @@ static void drive_set(drive_state_t state)
   if (state == DRIVE_FORWARD)
   {
     GPIOB->BSRR = GPIO_BSRR_BR5 | GPIO_BSRR_BR10; /* DIR LOW */
-    TIM2->CCR2 = DRIVE_PWM;
-    TIM3->CCR1 = DRIVE_PWM;
+    TIM2->CCR2 = pwm;
+    TIM3->CCR1 = pwm;
   }
   else if (state == DRIVE_REVERSE)
   {
     GPIOB->BSRR = GPIO_BSRR_BS5 | GPIO_BSRR_BS10; /* DIR HIGH */
-    TIM2->CCR2 = DRIVE_PWM;
-    TIM3->CCR1 = DRIVE_PWM;
+    TIM2->CCR2 = pwm;
+    TIM3->CCR1 = pwm;
   }
   drive_state = state;
+}
+
+/* Existing W/S callers retain the proven default duty. */
+static void drive_set(drive_state_t state)
+{
+  drive_set_pwm(state, DRIVE_PWM);
 }
 
 static void steering_stop(void)
@@ -391,7 +412,7 @@ static void command_fail_safe(void)
 
 static int parser_check_timeout(uint32_t now_ms)
 {
-  if ((parser_state == PARSER_STEERING) &&
+  if ((parser_state != PARSER_IDLE) &&
       ((uint32_t)(now_ms - steering_packet_last_ms) >= STEERING_PACKET_TIMEOUT_MS))
   {
     command_fail_safe();
@@ -462,7 +483,7 @@ static void command_process(char command)
 
 }
 
-/* Only this state consumes digits. IDLE digits can never initiate motion. */
+/* Only explicit packet states consume digits. IDLE digits cannot start motion. */
 static void uart2_process_byte(char value, uint32_t received_ms)
 {
   if ((value == 'X') || (value == 'x'))
@@ -474,7 +495,7 @@ static void uart2_process_byte(char value, uint32_t received_ms)
   {
     return; /* discard the byte following an expired partial packet */
   }
-  if (parser_state == PARSER_STEERING)
+  if (parser_state != PARSER_IDLE)
   {
     if ((value < '0') || (value > '9'))
     {
@@ -486,7 +507,25 @@ static void uart2_process_byte(char value, uint32_t received_ms)
     steering_packet_digits++;
     if (steering_packet_digits == 4U)
     {
-      if ((steering_packet_value >= STEERING_RIGHT_TARGET) &&
+      if (parser_state != PARSER_STEERING)
+      {
+        if (steering_packet_value > DRIVE_PWM_MAX)
+        {
+          command_fail_safe();
+        }
+        else if (steering_packet_value == 0U)
+        {
+          command_fail_safe();
+        }
+        else
+        {
+          drive_set_pwm(parser_state == PARSER_FORWARD_PWM ? DRIVE_FORWARD : DRIVE_REVERSE,
+                        steering_packet_value);
+          last_drive_command_ms = received_ms;
+          parser_reset();
+        }
+      }
+      else if ((steering_packet_value >= STEERING_RIGHT_TARGET) &&
           (steering_packet_value <= STEERING_LEFT_TARGET))
       {
         steering_target = steering_packet_value;
@@ -503,6 +542,14 @@ static void uart2_process_byte(char value, uint32_t received_ms)
   }
   if ((value >= '0') && (value <= '9'))
   {
+    return;
+  }
+  if ((value == 'F') || (value == 'f') || (value == 'B') || (value == 'b'))
+  {
+    parser_state = ((value == 'F') || (value == 'f')) ? PARSER_FORWARD_PWM : PARSER_REVERSE_PWM;
+    steering_packet_digits = 0U;
+    steering_packet_value = 0U;
+    steering_packet_last_ms = received_ms;
     return;
   }
   if ((value == 'T') || (value == 't'))
@@ -547,6 +594,25 @@ static void uart2_process_rx(void)
   }
 }
 
+static void command_check_timeouts(uint16_t steering_position)
+{
+  if ((drive_state != DRIVE_STOP) &&
+      ((uint32_t)(g_millis - last_drive_command_ms) >= COMMAND_TIMEOUT_MS))
+  {
+    drive_set(DRIVE_STOP);
+    uart2_print("DRIVE TIMEOUT STOP\r\n");
+  }
+
+  if ((steering_active != 0U) &&
+      ((uint32_t)(g_millis - last_steering_command_ms) >= COMMAND_TIMEOUT_MS))
+  {
+    steering_stop();
+    steering_target = steering_position;
+    steering_active = 0U;
+    uart2_print("STEERING TIMEOUT STOP\r\n");
+  }
+}
+
 int main(void)
 {
   uint32_t last_report_ms;
@@ -582,21 +648,7 @@ int main(void)
       steering_stop();
     }
 
-    if ((drive_state != DRIVE_STOP) &&
-        ((uint32_t)(g_millis - last_drive_command_ms) >= COMMAND_TIMEOUT_MS))
-    {
-      drive_set(DRIVE_STOP);
-      uart2_print("DRIVE TIMEOUT STOP\r\n");
-    }
-
-    if ((steering_active != 0U) &&
-        ((uint32_t)(g_millis - last_steering_command_ms) >= COMMAND_TIMEOUT_MS))
-    {
-      steering_stop();
-      steering_target = steering_position;
-      steering_active = 0U;
-      uart2_print("STEERING TIMEOUT STOP\r\n");
-    }
+    command_check_timeouts(steering_position);
 
     if ((uint32_t)(g_millis - last_report_ms) >= SPEED_REPORT_MS)
     {

@@ -110,13 +110,16 @@ class VehicleControllerNode(Node):
             'Speed magnitude is ignored: +0.2 and +1.0 m/s both request FORWARD. '
             'Numeric speed control is unavailable.')
 
-    def publish_command(self, drive_state, steering_adc, emergency_stop):
+    def publish_command(self, drive_state, steering_adc, emergency_stop,
+                        pwm_control=False, drive_pwm=0):
         output = VehicleCommand()
         output.header.stamp = self.get_clock().now().to_msg()
         output.header.frame_id = ''
         output.drive_state = drive_state
         output.steering_adc = steering_adc
         output.emergency_stop = emergency_stop
+        output.pwm_control = pwm_control
+        output.drive_pwm = drive_pwm
         self.publisher.publish(output)
 
     def publish_safe_stop(self):
@@ -132,6 +135,11 @@ class VehicleControllerNode(Node):
             return
         try:
             state = speed_to_drive_state(command.speed_mps, self.config.speed_deadband_mps)
+            if command.pwm_control:
+                if not 0 <= command.drive_pwm <= VehicleCommand.DRIVE_PWM_MAX:
+                    raise ValueError('PWM outside 0..799; forcing STOP')
+                if command.drive_pwm == 0:
+                    state = VehicleCommand.DRIVE_STOP
             adc = steering_angle_to_adc(command.steering_angle_rad, self.config)
         except ValueError as error:
             now = time.monotonic()
@@ -141,7 +149,8 @@ class VehicleControllerNode(Node):
             self.publish_safe_stop()
             return
         self.last_valid_command = time.monotonic()
-        self.publish_command(state, adc, False)
+        self.publish_command(state, adc, False, command.pwm_control,
+                             command.drive_pwm if state != VehicleCommand.DRIVE_STOP else 0)
 
     def check_timeout(self):
         if (self.last_valid_command is None

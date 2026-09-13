@@ -270,3 +270,41 @@ def test_explicit_port_override(env):
     node = env.make(port='/some/device')
     assert node.config['port'] == '/some/device'
     assert env.serial.call_args.kwargs['port'] == '/some/device'
+
+
+@pytest.mark.parametrize('state,pwm,packet', [(1, 5, b'F0005'), (2, 55, b'B0055'),
+                                            (1, 799, b'F0799'), (2, 799, b'B0799'),
+                                            (1, 0, b'X'), (1, 800, b'X')])
+def test_pwm_wire_and_timeout(env, state, pwm, packet):
+    node = env.make()
+    msg = command(state)
+    msg.pwm_control, msg.drive_pwm = True, pwm
+    node.on_command(msg)
+    assert packets(env) == [packet]
+    advance(env, node, 100.5)
+    assert packets(env)[-1] == b'X'
+
+
+def test_stop_cannot_be_overwritten_during_tx_spacing(env):
+    node = env.make()
+    msg = command()
+    msg.pwm_control, msg.drive_pwm = True, 5
+    node.on_command(msg)
+    env.now[0] += .001
+    node.on_command(command(0))
+    msg.drive_state = 2
+    node.on_command(msg)
+    advance(env, node, 100.021)
+    assert packets(env) == [b'F0005', b'X']
+    advance(env, node, 100.042)
+    assert packets(env)[-1] == b'B0005'
+
+
+def test_pwm_receive_only_never_writes(env):
+    node = env.make(receive_only=True)
+    msg = command()
+    msg.pwm_control, msg.drive_pwm = True, 799
+    node.on_command(msg)
+    advance(env, node, 101.)
+    node.close_serial()
+    assert packets(env) == []

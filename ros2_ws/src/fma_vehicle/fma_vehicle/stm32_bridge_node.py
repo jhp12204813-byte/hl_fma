@@ -1,4 +1,4 @@
-"""Bridge for the current polling STM32 protocol, without numeric speed control.
+"""Bridge for STM32 direction/steering and optional raw-PWM commands.
 
 All parameters are startup-only. receive_only suppresses EVERY write, including
 shutdown/error STOPs. TX spacing reduces polling-UART overruns but cannot provide
@@ -69,6 +69,7 @@ class STM32BridgeNode(Node):
         self.drive = b'X'
         self.steering = None
         self.safe_stop = True
+        self.pending_stop = False
         self.next_drive = self.next_steering = self.next_tx = 0.0
         self.was_stopped = False
         self.warning_times = {}
@@ -112,21 +113,32 @@ class STM32BridgeNode(Node):
             self.warning_times[key] = now
 
     def on_command(self, msg):
+        previous_drive = self.drive
         self.safe_stop = True
         self.drive, self.steering = b'X', None
         # Emergency overrides even invalid fields; never retain a motion target.
         if not msg.emergency_stop:
             if msg.drive_state not in DRIVE_PACKETS:
                 self.warn('command', 'Invalid drive state; forcing STOP')
+            elif msg.pwm_control and not 0 <= msg.drive_pwm <= VehicleCommand.DRIVE_PWM_MAX:
+                self.warn('command', 'PWM outside 0..799; forcing STOP')
             elif not STEERING_MIN_ADC <= msg.steering_adc <= STEERING_MAX_ADC:
                 self.warn('command', 'Steering ADC outside 150..3950; forcing STOP')
             else:
                 self.last_command = time.monotonic()
                 self.drive = DRIVE_PACKETS[msg.drive_state]
+                if msg.pwm_control:
+                    if msg.drive_pwm == 0:
+                        self.drive = b'X'
+                    elif self.drive != b'X':
+                        prefix = 'F' if msg.drive_state == VehicleCommand.DRIVE_FORWARD else 'B'
+                        self.drive = f'{prefix}{msg.drive_pwm:04d}'.encode('ascii')
                 self.safe_stop = self.drive == b'X'
                 if not self.safe_stop:
                     self.steering = msg.steering_adc
         if self.safe_stop:
+            self.pending_stop = True
+        if self.safe_stop or self.drive != previous_drive:
             self.next_drive = 0.0
         self.transmit(time.monotonic())
 
@@ -141,7 +153,11 @@ class STM32BridgeNode(Node):
         self.was_stopped = stopped
         if now < self.next_tx:
             return
-        if now >= self.next_drive:
+        if self.pending_stop:
+            self.write(b'X')
+            self.pending_stop = False
+            self.next_drive = 0.0
+        elif now >= self.next_drive:
             self.write(b'X' if stopped else self.drive)
             self.next_drive = time.monotonic() + self.drive_period
         elif not stopped and now >= self.next_steering:

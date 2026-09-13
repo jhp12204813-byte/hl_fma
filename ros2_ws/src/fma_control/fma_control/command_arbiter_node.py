@@ -18,11 +18,15 @@ class Candidate:
     steering_angle_rad: float
     emergency_stop: bool
     received_at: float
+    pwm_control: bool = False
+    drive_pwm: int = 0
 
 
 def candidate_is_valid(candidate):
     return (candidate is not None and math.isfinite(candidate.speed_mps)
-            and math.isfinite(candidate.steering_angle_rad))
+            and math.isfinite(candidate.steering_angle_rad)
+            and (not candidate.pwm_control
+                 or 0 <= candidate.drive_pwm <= DriveCommand.DRIVE_PWM_MAX))
 
 
 def select_source(lane, mission, emergency_latched, now, lane_timeout, mission_timeout,
@@ -84,7 +88,9 @@ class CommandArbiterNode(Node):
 
     def receive_candidate(self, source, msg):
         now = time.monotonic()
-        candidate = Candidate(msg.speed_mps, msg.steering_angle_rad, msg.emergency_stop, now)
+        candidate = Candidate(msg.speed_mps, msg.steering_angle_rad, msg.emergency_stop, now,
+                              msg.pwm_control if source == 'manual' else False,
+                              msg.drive_pwm if source == 'manual' else 0)
         # Invalid new input also invalidates the previous command from this source.
         self.candidates[source] = candidate if candidate_is_valid(candidate) else None
         if self.candidates[source] is None:
@@ -122,6 +128,8 @@ class CommandArbiterNode(Node):
             output.speed_mps = candidate.speed_mps
             output.steering_angle_rad = candidate.steering_angle_rad
             output.emergency_stop = candidate.emergency_stop
+            output.pwm_control = candidate.pwm_control
+            output.drive_pwm = candidate.drive_pwm
         else:
             output.speed_mps = 0.0
             output.steering_angle_rad = 0.0

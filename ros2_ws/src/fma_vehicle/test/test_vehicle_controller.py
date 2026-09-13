@@ -222,3 +222,28 @@ def test_node_invalid_angle_parameters(node_factory, parameters):
     node.on_command(request(angle=0.1405))
     assert_stop(output(node))
     assert node.last_valid_command is None
+
+
+@pytest.mark.parametrize('pwm', [0, 5, 50, 55, 120, 799])
+@pytest.mark.parametrize('speed,state', [(.2, 1), (-.2, 2)])
+def test_raw_pwm_conversion(node_factory, pwm, speed, state):
+    node = node_factory.make()
+    msg = request(speed, .1405)
+    msg.pwm_control, msg.drive_pwm = True, pwm
+    node.on_command(msg)
+    result = output(node)
+    assert result.pwm_control and result.drive_pwm == pwm
+    assert result.drive_state == (state if pwm else 0)
+    assert result.steering_adc == 3041
+    node_factory.now[0] += .5
+    node.check_timeout()
+    assert_stop(output(node))
+    assert output(node).drive_pwm == 0
+
+
+def test_pwm_invalid_fails_safe(node_factory):
+    node = node_factory.make()
+    msg = request()
+    msg.pwm_control, msg.drive_pwm = True, 800
+    node.on_command(msg)
+    assert_stop(output(node))

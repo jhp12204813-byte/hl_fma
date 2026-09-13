@@ -66,6 +66,14 @@ ros2 run fma_vehicle stm32_bridge_node --ros-args -p port:=/some/device
 
 ## 키보드 명령
 
+ROS2 증감식 PWM teleop은 별도 `Fdddd`(전진)/`Bdddd`(후진) 패킷을 사용한다.
+`dddd`는 0000..0799 timer count이며 0은 fail-safe STOP, 초과/문법 오류는 STOP이다.
+기존 `Tdddd`와 동일한 50 ms 부분 패킷 timeout 및 X 선점 규칙을 사용한다.
+방향 변경 전 양쪽 PWM=0 및 delay, 구동 700 ms timeout, IWDG는 유지한다.
+현재 timer ARR=799/20 kHz를 변경하지 않고 숫자 PWM 상한도 799로 제한한다.
+아래 W/S 표는 기존 **직접 serial 단일문자 명령**의 동작이다.
+ROS 키보드 키 동작/빌드/실행은 [teleop 문서](../../ros2_ws/src/fma_control/README_KO.md)를 따른다.
+
 현재 구동 설정은 `DRIVE_PWM=120`, 주기 800 count (timer ARR `PWM_PERIOD=799`),
 즉 고정 duty 15%이다. 사용자가 실차 키보드 수동주행에서 속도가 적절함을
 확인한 설정이다. W/S는 이 고정 PWM의 방향 명령이며 실제 속도 목표가 아니다.
