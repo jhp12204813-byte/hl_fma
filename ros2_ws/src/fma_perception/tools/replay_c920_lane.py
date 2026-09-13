@@ -14,6 +14,8 @@ sys.path.insert(0, str(ROOT))
 
 from fma_perception.c920_bev import C920BEV
 from fma_perception.paper_lane_tracker import PaperLaneTracker
+from fma_perception.stop_line_detector import StopLineDetector
+from fma_perception.stop_line_tracker import StopLineTracker
 
 
 def find_video(session_dir):
@@ -48,7 +50,7 @@ def make_mask(frame, bev):
     # Avoid crosswalk/curb/bright pavement entering the lane tracker.
     src_mask = yellow
 
-    # Binary/categorical mask -> nearest-neighbor warp.
+    # Yellow lane mask -> BEV.
     bev_mask = cv2.warpPerspective(
         src_mask,
         bev.H,
@@ -58,7 +60,18 @@ def make_mask(frame, bev):
         borderValue=0,
     )
 
-    return src_mask, bev_mask
+    # White is kept completely separate from lane detection.
+    # It is used only for stop-line / crosswalk detection.
+    white_bev = cv2.warpPerspective(
+        white,
+        bev.H,
+        (bev.width, bev.height),
+        flags=cv2.INTER_NEAREST,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
+    )
+
+    return src_mask, bev_mask, white_bev
 
 
 def draw_fit(img, fit, color):
@@ -157,6 +170,14 @@ def main():
             fps = 30.0
 
         tracker = PaperLaneTracker()
+
+        stop_detector = StopLineDetector(
+            resolution_m=bev.resolution_m,
+            far_m=bev.far_m,
+            width_px=bev.width,
+        )
+        stop_tracker = StopLineTracker()
+
         counts = Counter()
 
         out_video = output / f"{session_dir.name}_lane.mp4"
@@ -188,9 +209,15 @@ def main():
                     f"{frame.shape[1]}x{frame.shape[0]}"
                 )
 
-            _, mask = make_mask(frame, bev)
+            _, mask, white_bev = make_mask(frame, bev)
 
             result = tracker.process(mask)
+
+            stop_result = stop_detector.detect(
+                white_bev,
+                result,
+            )
+            tracked_stop = stop_tracker.update(stop_result)
 
             state = result.get(
                 "pair_state",
@@ -227,6 +254,51 @@ def main():
                     result["center"]["y_max"]
                 )
 
+            row["stop_line_detected"] = bool(
+                stop_result["stop_line_detected"]
+            )
+            row["stop_line_distance_m"] = (
+                None
+                if stop_result["stop_line_distance_m"] is None
+                else float(stop_result["stop_line_distance_m"])
+            )
+            row["stop_line_confidence"] = float(
+                stop_result["stop_line_confidence"]
+            )
+            row["crosswalk_detected"] = bool(
+                stop_result["crosswalk_detected"]
+            )
+            row["stop_line_candidate_count"] = int(
+                stop_result["candidate_count"]
+            )
+
+            if result.get("temporary_center") is not None:
+                row["temporary_center_coefficients"] = [
+                    float(x)
+                    for x in result[
+                        "temporary_center"
+                    ]["coefficients"]
+                ]
+                row["temporary_center_y_min"] = int(
+                    result["temporary_center"]["y_min"]
+                )
+                row["temporary_center_y_max"] = int(
+                    result["temporary_center"]["y_max"]
+                )
+
+            row["center_source"] = result.get(
+                "center_source",
+                "NONE",
+            )
+            row["reference_lane_width_px"] = float(
+                result.get("reference_lane_width_px", 0.0)
+            )
+
+            row["stop_tracked"] = bool(tracked_stop["stop_tracked"])
+            row["tracked_stop_distance_m"] = tracked_stop["tracked_stop_distance_m"]
+            row["stop_confirm_count"] = int(tracked_stop["stop_confirm_count"])
+            row["stop_missed_count"] = int(tracked_stop["stop_missed_count"])
+            row["new_stop_event"] = bool(tracked_stop["new_stop_event"])
             all_rows.append(row)
 
             # D435i replay-style BEV debug.
@@ -252,10 +324,77 @@ def main():
                 (0, 255, 255),
             )
 
+            # Real two-lane center = green.
             draw_fit(
                 bev_debug,
                 result.get("center"),
                 (0, 255, 0),
+            )
+
+            # Single-lane fallback center = magenta.
+            draw_fit(
+                bev_debug,
+                result.get("temporary_center"),
+                (255, 0, 255),
+            )
+
+            if result.get("temporary_center") is not None:
+                cv2.putText(
+                    bev_debug,
+                    "TEMP CENTER",
+                    (10, 76),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (255, 0, 255),
+                    2,
+                    cv2.LINE_AA,
+                )
+
+            # Stop-line / crosswalk candidates.
+            candidate_color = (
+                (0, 165, 255)
+                if stop_result["crosswalk_detected"]
+                else (0, 0, 255)
+            )
+
+            for c in stop_result["candidates"]:
+                x = c["x"]
+                y = c["y"]
+                w = c["width"]
+                h = c["height"]
+
+                cv2.rectangle(
+                    bev_debug,
+                    (x, y),
+                    (x + w, y + h),
+                    candidate_color,
+                    2,
+                )
+
+            if stop_result["stop_line_detected"]:
+                text = (
+                    f"STOP "
+                    f"{stop_result['stop_line_distance_m']:.2f}m"
+                )
+                text_color = (0, 0, 255)
+
+            elif stop_result["crosswalk_detected"]:
+                text = "CROSSWALK"
+                text_color = (0, 165, 255)
+
+            else:
+                text = "STOP: none"
+                text_color = (180, 180, 180)
+
+            cv2.putText(
+                bev_debug,
+                text,
+                (10, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                text_color,
+                2,
+                cv2.LINE_AA,
             )
 
             # Vehicle center x=0.

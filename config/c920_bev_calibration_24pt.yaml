@@ -1,0 +1,373 @@
+camera_name: C920
+image_width: 640
+image_height: 480
+coordinate_convention:
+  x: vehicle lateral, positive right
+  y: vehicle forward, positive forward
+  unit: meter
+  origin: vehicle center reference
+homography_image_to_ground:
+- - -0.01128686330445181
+  - 0.00027858769619342735
+  - 3.593817934677382
+- - 0.0006577867636973338
+  - 0.009518189714348708
+  - -8.359548774004875
+- - 0.0002755856213111709
+  - -0.01324167402943733
+  - 1.0
+homography_ground_to_image:
+- - -91.94432969470505
+  - -43.499115746693086
+  - -33.20179866184311
+- - -2.6913286218441637
+  - -11.157019402267588
+  - -83.59550279648049
+- - -0.010299161091600794
+  - -0.13574988322539616
+  - -0.09779446004503889
+homography_ground_to_bev:
+- - 100.0
+  - 0.0
+  - 300.0
+- - 0.0
+  - -100.0
+  - 600.0
+- - 0.0
+  - 0.0
+  - 1.0
+homography_image_to_bev:
+- - -1.0460106440518298
+  - -3.9446434392118563
+  - 659.3817934677382
+- - 0.09957269641696918
+  - -8.89682338909727
+  - 1435.9548774004875
+- - 0.0002755856213111709
+  - -0.01324167402943733
+  - 1.0
+bev:
+  half_width_m: 3.0
+  near_m: 0.7
+  far_m: 6.0
+  resolution_m: 0.01
+  calibrated_forward_max_m: 4.0
+  width_px: 600
+  height_px: 530
+reprojection_error_m:
+  mean: 0.012457181435432459
+  median: 0.012507302169222509
+  max: 0.023486791320489572
+calibration_points:
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 136.0
+  - 411.0
+  ground_xy_m:
+  - -0.5
+  - 1.0
+  reprojection_xy_m:
+  - -0.49338907497601614
+  - 0.989390195528427
+  error_m: 0.012500891192140923
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 327.0
+  - 407.0
+  ground_xy_m:
+  - 0.0
+  - 1.0
+  reprojection_xy_m:
+  - -0.0038143504531359352
+  - 0.9933254456540865
+  error_m: 0.0076875838269179625
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 511.0
+  - 402.0
+  ground_xy_m:
+  - 0.5
+  - 1.0
+  reprojection_xy_m:
+  - 0.49297343759887585
+  - 1.0035336211660284
+  error_m: 0.007865052938276733
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 82.0
+  - 287.0
+  ground_xy_m:
+  - -1.0
+  - 2.0
+  reprojection_xy_m:
+  - -0.9893754006065413
+  - 2.0066114222703213
+  error_m: 0.012513713146304093
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 205.0
+  - 288.0
+  ground_xy_m:
+  - -0.5
+  - 2.0
+  reprojection_xy_m:
+  - -0.49335922768546353
+  - 1.988846901573207
+  error_m: 0.012980426088971212
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 324.0
+  - 287.0
+  ground_xy_m:
+  - 0.0
+  - 2.0
+  reprojection_xy_m:
+  - -0.006207471022640527
+  - 1.997257173807964
+  error_m: 0.0067864417787703805
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 442.0
+  - 286.0
+  ground_xy_m:
+  - 0.5
+  - 2.0
+  reprojection_xy_m:
+  - 0.49348841238320806
+  - 2.005997392791405
+  error_m: 0.008852654606701574
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 557.0
+  - 285.0
+  ground_xy_m:
+  - 1.0
+  - 2.0
+  reprojection_xy_m:
+  - 0.9974017182751719
+  - 2.015160291806409
+  error_m: 0.015381336599172735
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 56.0
+  - 231.0
+  ground_xy_m:
+  - -1.5
+  - 3.0
+  reprojection_xy_m:
+  - -1.4809221748941597
+  - 2.9969801090341015
+  error_m: 0.019315360525109206
+  ransac_inlier: false
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 147.0
+  - 231.0
+  ground_xy_m:
+  - -1.0
+  - 3.0
+  reprojection_xy_m:
+  - -0.9904312152246166
+  - 3.004560957790243
+  error_m: 0.010600187641829031
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 235.0
+  - 232.0
+  ground_xy_m:
+  - -0.5
+  - 3.0
+  reprojection_xy_m:
+  - -0.5011879240284519
+  - 2.9874616058819186
+  error_m: 0.01259454209400694
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 323.0
+  - 232.0
+  ground_xy_m:
+  - 0.0
+  - 3.0
+  reprojection_xy_m:
+  - -0.006451378249169809
+  - 2.994806484998399
+  error_m: 0.008282081826794362
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 411.0
+  - 232.0
+  ground_xy_m:
+  - 0.5
+  - 3.0
+  reprojection_xy_m:
+  - 0.5005356311324618
+  - 3.0023332350016134
+  error_m: 0.0023939269585382694
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 495.0
+  - 232.0
+  ground_xy_m:
+  - 1.0
+  - 3.0
+  reprojection_xy_m:
+  - 0.9963286627491009
+  - 3.00969379875031
+  error_m: 0.010365734485377672
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 580.0
+  - 232.0
+  ground_xy_m:
+  - 1.5
+  - 3.0
+  reprojection_xy_m:
+  - 1.510243212297834
+  - 3.017323395299905
+  error_m: 0.020125193735595896
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 41.0
+  - 198.0
+  ground_xy_m:
+  - -2.0
+  - 4.0
+  reprojection_xy_m:
+  - -1.9783378729914634
+  - 4.003581481523548
+  error_m: 0.021956200865301968
+  ransac_inlier: false
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 112.0
+  - 198.0
+  ground_xy_m:
+  - -1.5
+  - 4.0
+  reprojection_xy_m:
+  - -1.4989759846582846
+  - 4.023464457358144
+  error_m: 0.023486791320489572
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 183.0
+  - 199.0
+  ground_xy_m:
+  - -1.0
+  - 4.0
+  reprojection_xy_m:
+  - -0.9994320162647932
+  - 4.004045149473335
+  error_m: 0.004084830447531366
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 253.0
+  - 200.0
+  ground_xy_m:
+  - -0.5
+  - 4.0
+  reprojection_xy_m:
+  - -0.502947676244802
+  - 3.984191301918421
+  error_m: 0.016081160725479063
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 322.0
+  - 200.0
+  ground_xy_m:
+  - 0.0
+  - 4.0
+  reprojection_xy_m:
+  - -0.009723984666172214
+  - 4.003666686153863
+  error_m: 0.010392327224393956
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 391.0
+  - 201.0
+  ground_xy_m:
+  - 0.5
+  - 4.0
+  reprojection_xy_m:
+  - 0.49127200143748534
+  - 3.9832078689242203
+  error_m: 0.01892494715906558
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 459.0
+  - 201.0
+  ground_xy_m:
+  - 1.0
+  - 4.0
+  reprojection_xy_m:
+  - 0.9972467381335544
+  - 4.0026954886521935
+  error_m: 0.0038530650110434974
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 527.0
+  - 202.0
+  ground_xy_m:
+  - 1.5
+  - 4.0
+  reprojection_xy_m:
+  - 1.5024238705270807
+  - 3.981617688827162
+  error_m: 0.018541426924244465
+  ransac_inlier: true
+- session: '20260912_174838'
+  frame_index: 109
+  image_uv_px:
+  - 593.0
+  - 202.0
+  ground_xy_m:
+  - 2.0
+  - 4.0
+  reprojection_xy_m:
+  - 2.01338201954542
+  - 4.000809436372315
+  error_m: 0.013406477328322584
+  ransac_inlier: true
