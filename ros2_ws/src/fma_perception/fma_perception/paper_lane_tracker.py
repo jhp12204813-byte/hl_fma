@@ -28,6 +28,15 @@ class PaperLaneConfig:
     joint_residual_px: float = 8.0
     previous_margin_px: int = 35
 
+    # Re-acquisition after intersections / temporary lane loss.
+    reacquire_after_weak_frames: int = 3
+
+    # Keep following the surviving lane for a while.
+    # Search for the missing side around the expected lane-width offset.
+    reacquire_after_single_frames: int = 15
+    missing_side_margin_px: int = 100
+    initial_pair_width_px: float = 325.0
+
     # Lane tracker only: suppress very wide horizontal paint.
     # Raw BEV remains untouched for stop-line detection.
     max_horizontal_run_px: int = 30
@@ -35,6 +44,10 @@ class PaperLaneConfig:
     # Pair-quality checks.
     # No assumed physical lane width is used here.
     min_pair_overlap_px: int = 30
+    # Reject fake pairs made from two edges of one physical lane marking.
+    # Current C920 metric-BEV data has the real pair concentrated near
+    # 400-500 px, while false narrow pairs appear below ~350 px.
+    min_pair_width_px: float = 350.0
     max_width_variation_ratio: float = 0.35
     max_heading_difference: float = 0.50
 
@@ -169,7 +182,12 @@ def _pair_quality(left, right, cfg):
         quality["reason"] = "lane_order_failed"
     elif y1-y0 < cfg.min_pair_overlap_px:
         quality["reason"] = "overlap_short"
+    elif median_width < cfg.min_pair_width_px:
+        quality["valid"] = False
+        quality["reason"] = "lane_width_too_narrow"
+
     elif width_variation > cfg.max_width_variation_ratio:
+        quality["valid"] = False
         quality["reason"] = "width_variation_failed"
     elif heading_difference > cfg.max_heading_difference:
         quality["reason"] = "heading_difference_failed"
@@ -273,21 +291,60 @@ class PaperLaneTracker:
         self.cfg = cfg or PaperLaneConfig()
         self.previous_left = None
         self.previous_right = None
+        self.weak_streak = 0
+        self.single_streak = 0
+        self.last_valid_width_px = float(
+            self.cfg.initial_pair_width_px
+        )
 
     def reset(self):
         self.previous_left = None
         self.previous_right = None
+        self.weak_streak = 0
+        self.single_streak = 0
+        self.last_valid_width_px = float(
+            self.cfg.initial_pair_width_px
+        )
 
-    def _search_previous(self, mask, coeff):
+    def _search_around(self, mask, coeff, margin_px):
         ys, xs = np.nonzero(mask > 0)
 
         if len(xs) == 0:
             return None
 
         expected = np.polyval(coeff, ys)
-        keep = np.abs(xs - expected) <= self.cfg.previous_margin_px
+        keep = np.abs(xs - expected) <= float(margin_px)
 
         return _ransac_poly2(xs[keep], ys[keep], self.cfg)
+
+    def _search_previous(self, mask, coeff):
+        return self._search_around(
+            mask,
+            coeff,
+            self.cfg.previous_margin_px,
+        )
+
+    def _search_missing_side(self, mask, visible_fit, direction):
+        if visible_fit is None:
+            return None
+
+        coeff = np.asarray(
+            visible_fit["coefficients"],
+            dtype=float,
+        ).copy()
+
+        # x(y) = ay^2 + by + c.
+        # Moving to the opposite lane only changes the intercept.
+        coeff[2] += (
+            float(direction)
+            * self.last_valid_width_px
+        )
+
+        return self._search_around(
+            mask,
+            coeff,
+            self.cfg.missing_side_margin_px,
+        )
 
     def _sliding_window(self, mask, base_x):
         h, w = mask.shape
@@ -364,42 +421,124 @@ class PaperLaneTracker:
         left = None
         right = None
 
-        # 이전 프레임 주변부터 탐색.
-        if self.previous_left is not None:
-            left = self._search_previous(
-                mask, self.previous_left["coefficients"]
-            )
+        # If tracking has been weak/single-sided for several frames,
+        # stop trusting the old polynomial and perform a cold search.
+        force_full_search = (
+            self.weak_streak >= self.cfg.reacquire_after_weak_frames
+            or self.single_streak >= self.cfg.reacquire_after_single_frames
+        )
 
-        if self.previous_right is not None:
-            right = self._search_previous(
-                mask, self.previous_right["coefficients"]
-            )
+        if not force_full_search:
+            # Fast path: search around the previous frame's fits.
+            if self.previous_left is not None:
+                left = self._search_previous(
+                    mask,
+                    self.previous_left["coefficients"],
+                )
 
-        # 실패한 쪽만 histogram + sliding window 재탐색.
-        if left is None or right is None:
+            if self.previous_right is not None:
+                right = self._search_previous(
+                    mask,
+                    self.previous_right["coefficients"],
+                )
+
+        # If exactly one lane survives, use it only as a SEARCH GUIDE
+        # for the missing side. This never creates a synthetic lane or
+        # center; the missing lane still has to be fitted from real pixels.
+        if not force_full_search:
+            if left is not None and right is None:
+                right = self._search_missing_side(
+                    mask,
+                    left,
+                    +1.0,
+                )
+
+            elif right is not None and left is None:
+                left = self._search_missing_side(
+                    mask,
+                    right,
+                    -1.0,
+                )
+
+        # Missing side, or explicit recovery:
+        # run histogram + sliding-window search.
+        if force_full_search or left is None or right is None:
             left_seed, right_seed = self._histogram_seeds(mask)
 
-            if left is None and left_seed is not None:
-                left = self._sliding_window(mask, left_seed)
+            if force_full_search:
+                left = (
+                    self._sliding_window(mask, left_seed)
+                    if left_seed is not None
+                    else None
+                )
+                right = (
+                    self._sliding_window(mask, right_seed)
+                    if right_seed is not None
+                    else None
+                )
+            else:
+                if left is None and left_seed is not None:
+                    left = self._sliding_window(mask, left_seed)
 
-            if right is None and right_seed is not None:
-                right = self._sliding_window(mask, right_seed)
-
-        self.previous_left = left
-        self.previous_right = right
+                if right is None and right_seed is not None:
+                    right = self._sliding_window(mask, right_seed)
 
         result = {
             "left": left,
             "right": right,
             "state": "NONE",
             "center": None,
+            "temporary_center": None,
+            "center_source": "NONE",
             "horizontal_suppressed_pixels": int(suppressed_pixels),
+            "force_full_search": bool(force_full_search),
+            "reacquire_attempted": False,
+            "reacquire_used": False,
         }
 
         if left is not None and right is not None:
             result["state"] = "BOTH_VISUAL"
 
             quality = _pair_quality(left, right, self.cfg)
+
+            # Important recovery path:
+            # previous-fit search may find two lanes but they can belong
+            # to stale/incorrect tracks after an intersection.
+            # If the pair is weak, immediately try a fresh histogram +
+            # sliding-window search on BOTH sides.
+            if not quality["valid"] and not force_full_search:
+                result["reacquire_attempted"] = True
+
+                cold_left_seed, cold_right_seed = (
+                    self._histogram_seeds(mask)
+                )
+
+                cold_left = (
+                    self._sliding_window(mask, cold_left_seed)
+                    if cold_left_seed is not None
+                    else None
+                )
+                cold_right = (
+                    self._sliding_window(mask, cold_right_seed)
+                    if cold_right_seed is not None
+                    else None
+                )
+
+                if cold_left is not None and cold_right is not None:
+                    cold_quality = _pair_quality(
+                        cold_left,
+                        cold_right,
+                        self.cfg,
+                    )
+
+                    if cold_quality["valid"]:
+                        left = cold_left
+                        right = cold_right
+                        quality = cold_quality
+
+                        result["left"] = left
+                        result["right"] = right
+                        result["reacquire_used"] = True
 
             result["joint_refit_attempted"] = False
             result["joint_refit_used"] = False
@@ -457,6 +596,7 @@ class PaperLaneTracker:
                     "y_min": y0,
                     "y_max": y1,
                 }
+                result["center_source"] = "PAIR_VALID"
 
             result["pair_quality"] = quality
             result["pair_state"] = (
@@ -468,5 +608,84 @@ class PaperLaneTracker:
 
         elif right is not None:
             result["state"] = "RIGHT_ONLY"
+
+        # Single-lane fallback center.
+        #
+        # IMPORTANT:
+        # - The detected lane itself is NEVER used as center.
+        # - This is kept separate from result["center"].
+        # - PAIR_WEAK / NONE do not get a temporary center.
+        #
+        # x(y) = ay^2 + by + c, so a lateral offset only changes c.
+        if result["state"] == "LEFT_ONLY" and left is not None:
+            coeff = np.asarray(
+                left["coefficients"],
+                dtype=float,
+            ).copy()
+
+            coeff[2] += 0.5 * self.last_valid_width_px
+
+            result["temporary_center"] = {
+                "coefficients": coeff,
+                "y_min": int(left["y_min"]),
+                "y_max": int(left["y_max"]),
+            }
+            result["center_source"] = "LEFT_ONLY_OFFSET"
+
+        elif result["state"] == "RIGHT_ONLY" and right is not None:
+            coeff = np.asarray(
+                right["coefficients"],
+                dtype=float,
+            ).copy()
+
+            coeff[2] -= 0.5 * self.last_valid_width_px
+
+            result["temporary_center"] = {
+                "coefficients": coeff,
+                "y_min": int(right["y_min"]),
+                "y_max": int(right["y_max"]),
+            }
+            result["center_source"] = "RIGHT_ONLY_OFFSET"
+
+        # Record the width used for single-lane fallback.
+        result["reference_lane_width_px"] = float(
+            self.last_valid_width_px
+        )
+
+        # Update recovery state only after the final classification.
+        pair_state = result.get("pair_state")
+
+        if pair_state == "PAIR_VALID":
+            self.weak_streak = 0
+            self.single_streak = 0
+
+            q = result.get("pair_quality") or {}
+            width = q.get("median_width_px")
+
+            if width is not None and 350.0 <= float(width) <= 550.0:
+                # Light smoothing avoids one-frame width jumps.
+                self.last_valid_width_px = (
+                    0.8 * self.last_valid_width_px
+                    + 0.2 * float(width)
+                )
+
+        elif pair_state == "PAIR_WEAK":
+            self.weak_streak += 1
+            self.single_streak = 0
+
+        elif result["state"] in {"LEFT_ONLY", "RIGHT_ONLY"}:
+            self.single_streak += 1
+            self.weak_streak = 0
+
+        else:
+            # NONE: there is nothing useful to trust on the next frame.
+            self.weak_streak = 0
+            self.single_streak = 0
+
+        self.previous_left = left
+        self.previous_right = right
+
+        result["weak_streak"] = int(self.weak_streak)
+        result["single_streak"] = int(self.single_streak)
 
         return result
