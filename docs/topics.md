@@ -120,15 +120,16 @@ StopLine and TrafficLight perception messages remain unchanged.
 - `drive_state`: `0 = STOP`, `1 = FORWARD`, `2 = REVERSE`.
 - `steering_adc`: STM32 steering target raw ADC; current firmware accepts
   `150..3950` inclusive.
+- `pwm_control` / `drive_pwm`: optional raw timer counts 0..799; false retains legacy duty.
 - `emergency_stop`: when true, the bridge must send `X` with priority over all
   other values and must not send forward, reverse, or steering commands.
 
 `vehicle_controller` owns the conversion from `DriveCommand.speed_mps` and
 `DriveCommand.steering_angle_rad` to `VehicleCommand.drive_state` and
 `VehicleCommand.steering_adc`. The bridge only translates these
-low-level values to `W`/`S`/`X`/`Tdddd` serial commands. Current firmware has no
-numeric speed command; this interface adds no speed target, PWM, motor percentage,
-or steering angle. Measured controller calibration is enabled by default:
+low-level values to `W`/`S`/`X`/`Tdddd`, or `Fdddd`/`Bdddd` for explicit
+raw PWM mode. `DriveCommand` carries the same optional PWM fields through the
+manual arbiter path. PWM is not a physical speed target or motor percentage. Measured controller calibration is enabled by default:
 RIGHT=-0.3054 rad (-17.5 degrees)/ADC 150, CENTER=0 rad/ADC 2132,
 LEFT=+0.2810 rad (+16.1 degrees)/ADC 3950. Positive angles steer left and negative
 angles steer right (REP-103). Finite out-of-range angles clamp to the operational

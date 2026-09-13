@@ -175,11 +175,15 @@ the 0.001 rad center tolerance. Finite angles beyond these endpoints clamp to
 Explicitly disabling calibration still rejects nonzero angles outside center tolerance.
 At zero speed the controller publishes DRIVE_STOP with the calculated ADC;
 the bridge continues to suppress steering TX during STOP.
-Topics, message definitions, serial packet shape and raw telemetry are unchanged.
+Topics, steering packets and raw telemetry remain unchanged. Optional raw-PWM
+fields extend the two command messages; `Fdddd`/`Bdddd` extend drive packets.
 
-Current firmware has no numeric speed command. `VehicleCommand` contains neither
-physical speed/angle targets nor PWM/motor-percentage fields; conversion from
-the high-level `DriveCommand` remains `vehicle_controller`'s responsibility.
+Current firmware has no physical speed target. `pwm_control=true` enables
+`drive_pwm` raw timer counts 0..799 (1:1 CCR mapping); false retains legacy
+W/S fixed duty. Manual keyboard requests pass these fields through the arbiter
+and controller, retaining the existing steering conversion and fail-safe STOP.
+The manual-only launch isolates lane/mission inputs so teleop timeout selects
+STOP. See [teleop instructions](../ros2_ws/src/fma_control/README_KO.md).
 
 The implemented bridge consumes `/vehicle/command` and publishes
 `/vehicle/feedback`. It validates drive state and steering ADC range, and sends
