@@ -38,8 +38,8 @@ def test_lateral_sign(bev, x, sign):
 @pytest.mark.parametrize('slope', [-.2, .2])
 def test_heading_sign(bev, slope):
     result = follow.calculate_command(lane(bev, slope=slope), bev)
-    assert result['heading_error_deg'] == pytest.approx(np.degrees(np.arctan(slope)))
-    assert np.sign(result['steering_cmd_rad']) == np.sign(slope)
+    assert result['heading_error_deg'] == pytest.approx(np.degrees(np.arctan(-slope)))
+    assert np.sign(result['steering_cmd_rad']) == np.sign(-slope)
 
 
 @pytest.mark.parametrize('x,expected,adc', [(-2, .2810, 3950), (2, -.3054, 150)])

@@ -315,7 +315,7 @@ def test_extended_window_publish_guard(env, source, used, allowed):
     assert node.publisher.publish.call_args.args[0].drive_pwm == (40 if allowed else 0)
 
 
-@pytest.mark.parametrize('value', [3.31, 4., float('nan'), 1.7])
+@pytest.mark.parametrize('value', [5.21, 6., float('inf'), float('nan'), 1.7])
 def test_control_max_rejected_before_hardware(env, value):
     with pytest.raises(ValueError):
         env.make(_node_class=stop.LaneStopTestNode, single_side_control_max_m=value)

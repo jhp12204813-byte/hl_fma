@@ -187,4 +187,3 @@ def test_pair_width_below_minimum_is_not_accepted_as_pair(bev):
     tracker = CompetitionLaneTracker(bev)
     result = tracker.process(road(bev, 2.7), timestamp=1.)
     assert result['source'] != 'PAIR_TRACK'
-

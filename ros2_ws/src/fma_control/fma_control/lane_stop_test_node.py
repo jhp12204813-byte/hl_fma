@@ -445,7 +445,7 @@ class LaneStopTestNode(LaneFollowNode):
                 self.frame_valid_streak = 0
             self.frame_valid_streak = min(5, self.frame_valid_streak + 1)
         self.last_lane_stamp = max(self.last_lane_stamp, stamp)
-        required_streak = 2 if self.started.is_set() else 5
+        required_streak = 2 if (self.competition_tracking and self.started.is_set()) else 5
         result['acquired'] = self.frame_valid_streak >= required_streak
         result['frame_stamp'] = stamp
 
@@ -498,7 +498,7 @@ class LaneStopTestNode(LaneFollowNode):
             safe_now = self.motion_safe(result, stamp, now)
             if not safe_now:
                 self.frame_valid_streak = 0
-            required_streak = 2 if self.started.is_set() else 5
+            required_streak = 2 if (self.competition_tracking and self.started.is_set()) else 5
             acquired = (safe_now
                         and self.frame_valid_streak >= required_streak
                         and result.get('acquired', False))
@@ -582,7 +582,7 @@ class LaneStopTestNode(LaneFollowNode):
     def diagnostic(self, result, fps):
         with self.stop_lock:
             snapshot = self.stop_snapshot
-        stop_fresh = snapshot is not None and 0 <= time.monotonic()-snapshot[0] < .5
+        stop_fresh = snapshot is not None and 0 <= time.monotonic()-snapshot[0] < .8
         result = {**result, **(snapshot[1] if stop_fresh else {})}
         return (f" stop_approach_active={self.test_state == 'STOP_APPROACH'}"
                 f" stop_approach_pwm={self.options['stop_approach_pwm']}"
@@ -613,7 +613,7 @@ class LaneStopTestNode(LaneFollowNode):
                 f" stop_center_m={result.get('stop_center_m')}"
                 f" stop_near_edge_m={result.get('stop_near_edge_m')}"
                 f" stop_confidence={result.get('stop_confidence', 0.0)}"
-                f" drive_pwm={self.requested_drive_pwm() if self.test_state in ('DRIVING', 'STOP_APPROACH') and self.publisher is not None else 0}")
+                f" drive_pwm={self.requested_drive_pwm() if self.test_state in ('DRIVING', 'STOP_APPROACH', 'LANE_RECOVERY') and self.publisher is not None else 0}")
 
 
 def main(args=None, *, competition_tracking=False):
