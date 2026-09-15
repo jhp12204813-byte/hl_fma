@@ -51,6 +51,7 @@ class CommandArbiterNode(Node):
         defaults = {
             'lane_topic': '/cmd/lane', 'mission_topic': '/cmd/mission',
             'emergency_topic': '/cmd/emergency', 'final_topic': '/cmd/final',
+            'allow_lane_pwm': False,
             'manual_topic': '/cmd/manual', 'manual_timeout_sec': 0.5,
             'lane_timeout_sec': 0.5, 'mission_timeout_sec': 0.5,
             'emergency_timeout_sec': 0.5, 'output_rate_hz': 20.0,
@@ -88,11 +89,13 @@ class CommandArbiterNode(Node):
 
     def receive_candidate(self, source, msg):
         now = time.monotonic()
+        raw_pwm_allowed = source == 'manual' or (source == 'lane' and self.config['allow_lane_pwm'])
         candidate = Candidate(msg.speed_mps, msg.steering_angle_rad, msg.emergency_stop, now,
-                              msg.pwm_control if source == 'manual' else False,
-                              msg.drive_pwm if source == 'manual' else 0)
+                              msg.pwm_control if raw_pwm_allowed else False,
+                              msg.drive_pwm if raw_pwm_allowed else 0)
         # Invalid new input also invalidates the previous command from this source.
-        self.candidates[source] = candidate if candidate_is_valid(candidate) else None
+        rejected_pwm = source == 'lane' and msg.pwm_control and not raw_pwm_allowed
+        self.candidates[source] = candidate if candidate_is_valid(candidate) and not rejected_pwm else None
         if self.candidates[source] is None:
             self.warn(source, f'Invalid {source} candidate ignored: non-finite speed/steering', now)
 

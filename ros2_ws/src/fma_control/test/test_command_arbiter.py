@@ -323,3 +323,19 @@ def test_manual_pwm_passthrough_and_timeout(env):
     msg.drive_pwm = 800
     node.on_manual(msg)
     assert_stop(output(node))
+
+
+@pytest.mark.parametrize('allowed', [False, True])
+def test_lane_pwm_requires_opt_in(env, allowed):
+    node = env.make(allow_lane_pwm=allowed)
+    msg = command(.2, 0.)
+    msg.pwm_control, msg.drive_pwm = True, 40
+    node.on_lane(msg)
+    result = output(node)
+    if allowed:
+        assert result.pwm_control and result.drive_pwm == 40
+        assert not result.emergency_stop
+    else:
+        assert_stop(result)  # Must never fall back to legacy W/15% duty.
+    env.now[0] += .5
+    assert_stop(output(node))

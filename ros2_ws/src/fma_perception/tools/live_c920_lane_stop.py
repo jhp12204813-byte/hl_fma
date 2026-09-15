@@ -22,8 +22,15 @@ REPO = Path(__file__).resolve().parents[4]
 WINDOW = 'C920 lane + stop diagnostics'
 
 
+from fma_perception.stop_line_detector import StopLineConfig
+
+
 def parser():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--competition-tracking', action='store_true', help='Metric pair/persistent single-side diagnostics')
+    ap.add_argument('--nominal-lane-width-m', type=float, default=3.5)
+    ap.add_argument('--stop-min-thickness-m', type=float, default=None,
+                    help='Diagnostic detector minimum thickness in meters (default: existing config)')
     ap.add_argument('--device', default='/dev/video0')
     ap.add_argument('--width', type=int, default=640)
     ap.add_argument('--height', type=int, default=480)
@@ -33,6 +40,41 @@ def parser():
                     default=REPO / 'config/c920_bev_calibration.yaml')
     ap.add_argument('--record', type=Path, help='Record the displayed composite MP4')
     return ap
+
+
+def right_near_overlay(debug, bev, raw_mask, lane):
+    """Display-only: blue raw, cyan candidate halo, red rejected, green selected."""
+    out = debug.copy()
+    rows = bev.far_m - np.arange(bev.height) * bev.resolution_m
+    near = (rows >= 1.) & (rows <= 3.)
+    origin, _ = bev.ground_to_bev_pixel(0, 0)
+    right = np.arange(bev.width) >= origin
+    region = near[:, None] & right[None, :]
+    out[(raw_mask > 0) & region] = (255, 100, 0)
+    fit = lane.get('right')
+    if fit is None:
+        return out
+
+    def point_mask(prefix):
+        if prefix + '_x' not in fit or prefix + '_y' not in fit:
+            return None
+        xs, ys = np.asarray(fit[prefix + '_x']), np.asarray(fit[prefix + '_y'])
+        valid = (np.isfinite(xs) & np.isfinite(ys) & (xs >= 0) & (xs < bev.width)
+                 & (ys >= 0) & (ys < bev.height))
+        points = np.zeros((bev.height, bev.width), np.uint8)
+        points[ys[valid].astype(int), xs[valid].astype(int)] = 1
+        return (points > 0) & region
+
+    candidates = point_mask('_candidate')
+    selected = point_mask('_inlier')
+    if candidates is not None:
+        halo = cv2.dilate(candidates.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+        out[halo & region] = (255, 255, 0)
+        if selected is not None:
+            out[candidates & ~selected] = (0, 0, 255)
+    if selected is not None:
+        out[selected] = (0, 255, 0)
+    return out
 
 
 def annotate(frame, bev, mask, lane, stop, tracked, fps):
@@ -61,6 +103,11 @@ def annotate(frame, bev, mask, lane, stop, tracked, fps):
                 cv2.line(debug, *endpoints, (0, 0, 255), 3)
                 for point in endpoints:
                     cv2.circle(debug, point, 4, (0, 0, 255), -1)
+    if lane.get('_competition') is not None:
+        from fma_perception.competition_lane_overlay import draw_competition_overlay
+        debug = draw_competition_overlay(debug, bev, lane['_competition'])[:bev.height]
+    else:
+        debug = right_near_overlay(debug, bev, mask, lane)
     quality = lane.get('pair_quality') or {}
     valid = bool(quality.get('valid', False))
     state = lane.get('pair_state', lane['state'])
@@ -101,6 +148,14 @@ def annotate(frame, bev, mask, lane, stop, tracked, fps):
         column, row = divmod(i, 7)
         cv2.putText(canvas, line, (12 + column * (width // 2), top_height + 30 + row * 29),
                     cv2.FONT_HERSHEY_SIMPLEX, .52, (235, 235, 235), 1, cv2.LINE_AA)
+    cv2.putText(canvas, 'RIGHT 1-3m: raw BLUE | candidate CYAN halo | rejected RED | selected GREEN',
+                (12, top_height + 232), cv2.FONT_HERSHEY_SIMPLEX, .48,
+                (235, 235, 235), 1, cv2.LINE_AA)
+    if lane.get('_competition') is not None:
+        result = lane['_competition']
+        canvas[top_height+214:] = 0
+        cv2.putText(canvas, f"{result['source']} confidence={result['confidence']:.2f} width={result['selected_lane_width_m']} EMA={result['expected_lane_width_m']}",
+                    (12, top_height+232), cv2.FONT_HERSHEY_SIMPLEX, .48, (235,235,235), 1, cv2.LINE_AA)
     return canvas, ' | '.join(lines[i] for i in (0, 3, 4, 5, 8, 10, 11, 12))
 
 
@@ -191,12 +246,25 @@ def main(argv=None):
     args = parser().parse_args(argv)
     if args.width <= 0 or args.height <= 0 or not math.isfinite(args.fps) or args.fps <= 0:
         raise ValueError('width, height and fps must be positive and finite')
+    stop_config = StopLineConfig()
+    if args.stop_min_thickness_m is None:
+        # Competition/field diagnostic default.
+        # Keep StopLineConfig's generic detector default unchanged.
+        stop_config.min_thickness_m = 0.30
+    else:
+        if not math.isfinite(args.stop_min_thickness_m) or not 0 < args.stop_min_thickness_m <= stop_config.max_thickness_m:
+            raise ValueError('stop-min-thickness-m must be positive and within detector maximum')
+        stop_config.min_thickness_m = args.stop_min_thickness_m
     bev = C920BEV(args.config)
     if (args.width, args.height) != (bev.image_width, bev.image_height):
         raise ValueError('Requested resolution differs from calibration; use a matching --config')
-    tracker = PaperLaneTracker()
+    if args.competition_tracking:
+        from fma_perception.competition_lane_tracker import CompetitionLaneTracker, MetricLaneConfig
+        tracker = CompetitionLaneTracker(bev, MetricLaneConfig(nominal_lane_width_m=args.nominal_lane_width_m))
+    else:
+        tracker = PaperLaneTracker(diagnostics=True)
     detector = StopLineDetector(resolution_m=bev.resolution_m,
-                                far_m=bev.far_m, width_px=bev.width)
+                                far_m=bev.far_m, width_px=bev.width, config=stop_config)
     stop_tracker = StopLineTracker()
     cap = writer = None
     try:
@@ -231,7 +299,12 @@ def main(argv=None):
             if frame.shape[:2] != (bev.image_height, bev.image_width):
                 raise RuntimeError(f'Camera frame {frame.shape[:2]} does not match calibration')
             _, mask, white_bev = make_mask(frame, bev)
-            lane = tracker.process(mask)
+            if args.competition_tracking:
+                tracking = tracker.process(mask, timestamp=time.monotonic())
+                lane = tracker.to_lane_result(tracking)
+                lane['_competition'] = tracking
+            else:
+                lane = tracker.process(mask)
             stop = detector.detect(white_bev, lane)
             tracked = stop_tracker.update(stop)
             now = time.monotonic()
@@ -245,7 +318,12 @@ def main(argv=None):
                 writer.write(canvas)
             if now - last_log >= 1.0:
                 print(status, flush=True)
-                print(rejection_debug(bev, tracker, detector, lane, stop, white_bev), flush=True)
+                if args.competition_tracking:
+                    print('COMPETITION ' + ' '.join(f'{k}={tracking[k]}' for k in (
+                        'candidate_count', 'selected_pair_score', 'second_pair_score', 'selected_lane_width_m',
+                        'expected_lane_width_m', 'width_delta_m', 'heading_diff_deg', 'pair_overlap_m', 'reject_reason')), flush=True)
+                else:
+                    print(rejection_debug(bev, tracker, detector, lane, stop, white_bev), flush=True)
                 last_log = now
             if key in (ord('q'), ord('Q'), 27):
                 break

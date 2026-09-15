@@ -36,6 +36,8 @@ class PaperLaneConfig:
     reacquire_after_single_frames: int = 15
     missing_side_margin_px: int = 100
     initial_pair_width_px: float = 325.0
+    # None uses the symmetric C920 BEV origin (width / 2).
+    vehicle_center_x_px: float = None
 
     # Lane tracker only: suppress very wide horizontal paint.
     # Raw BEV remains untouched for stop-line detection.
@@ -287,12 +289,15 @@ def _joint_refit(left, right, cfg):
 
 
 class PaperLaneTracker:
-    def __init__(self, cfg=None):
+    def __init__(self, cfg=None, *, diagnostics=False):
         self.cfg = cfg or PaperLaneConfig()
+        self.diagnostics = diagnostics
         self.previous_left = None
         self.previous_right = None
         self.weak_streak = 0
         self.single_streak = 0
+        self.last_valid_pair = None
+        self.frames_since_valid = 0
         self.last_valid_width_px = float(
             self.cfg.initial_pair_width_px
         )
@@ -302,9 +307,20 @@ class PaperLaneTracker:
         self.previous_right = None
         self.weak_streak = 0
         self.single_streak = 0
+        self.last_valid_pair = None
+        self.frames_since_valid = 0
         self.last_valid_width_px = float(
             self.cfg.initial_pair_width_px
         )
+
+    def _fit_candidates(self, x, y):
+        fit = _ransac_poly2(x, y, self.cfg)
+        if self.diagnostics and fit is not None:
+            # Preserve the exact search output BEFORE RANSAC rejection. Joint
+            # refit copies these keys, so telemetry follows the selected fit.
+            fit['_candidate_x'] = x.copy()
+            fit['_candidate_y'] = y.copy()
+        return fit
 
     def _search_around(self, mask, coeff, margin_px):
         ys, xs = np.nonzero(mask > 0)
@@ -315,7 +331,7 @@ class PaperLaneTracker:
         expected = np.polyval(coeff, ys)
         keep = np.abs(xs - expected) <= float(margin_px)
 
-        return _ransac_poly2(xs[keep], ys[keep], self.cfg)
+        return self._fit_candidates(xs[keep], ys[keep])
 
     def _search_previous(self, mask, coeff):
         return self._search_around(
@@ -381,30 +397,76 @@ class PaperLaneTracker:
             return None
 
         ids = np.unique(collected)
-        return _ransac_poly2(xs[ids], ys[ids], self.cfg)
+        return self._fit_candidates(xs[ids], ys[ids])
 
-    def _histogram_seeds(self, mask):
+    def _vehicle_center(self, width):
+        center = self.cfg.vehicle_center_x_px
+        return width / 2.0 if center is None else float(center)
+
+    def _selection_quality(self, left, right, width):
+        quality = _pair_quality(left, right, self.cfg)
+        # Use the nearest COMMON observed row, not extrapolated image bottom.
+        y = min(left["y_max"], right["y_max"])
+        lx = float(np.polyval(left["coefficients"], y))
+        rx = float(np.polyval(right["coefficients"], y))
+        ego = self._vehicle_center(width)
+        if not lx < ego < rx:
+            return {**quality, "valid": False, "reason": "ego_not_enclosed"}
+        if (quality["valid"] and self.last_valid_pair is not None
+                and self.frames_since_valid < self.cfg.reacquire_after_single_frames):
+            # Retain the confirmed boundaries through short occlusions. A new
+            # adjacent boundary must not replace a missing one immediately.
+            displacement = []
+            for fit, previous in zip((left, right), self.last_valid_pair):
+                ys = np.linspace(max(fit["y_min"], previous["y_min"]),
+                                 min(fit["y_max"], previous["y_max"]), 20)
+                if ys[-1] < ys[0]:
+                    displacement.append(float("inf"))
+                else:
+                    displacement.append(float(np.max(np.abs(
+                        np.polyval(fit["coefficients"], ys)
+                        - np.polyval(previous["coefficients"], ys)))))
+            if max(displacement) > self.cfg.previous_margin_px:
+                return {**quality, "valid": False, "reason": "pair_lock_mismatch"}
+        return quality
+
+    def _cold_pair(self, mask):
         h, w = mask.shape
-
-        # 전체 BEV를 사용하되 가까운 영역에 약간 더 높은 가중치.
         weights = np.linspace(0.5, 1.0, h)[:, None]
         hist = np.sum((mask > 0) * weights, axis=0)
-
-        mid = w // 2
-
-        left_hist = hist[:mid]
-        right_hist = hist[mid:]
-
-        left = None
-        right = None
-
-        if left_hist.size and left_hist.max() > 0:
-            left = int(np.argmax(left_hist))
-
-        if right_hist.size and right_hist.max() > 0:
-            right = int(np.argmax(right_hist) + mid)
-
-        return left, right
+        candidates = []
+        # Nonmaximum suppression prevents fitting both edges of the same paint.
+        while hist.max() > 0:
+            seed = int(np.argmax(hist))
+            hist[max(0, seed-self.cfg.margin_px):min(w, seed+self.cfg.margin_px+1)] = 0
+            fit = self._sliding_window(mask, seed)
+            if fit is not None:
+                candidates.append(fit)
+        ego = self._vehicle_center(w)
+        lefts = [f for f in candidates
+                 if np.polyval(f["coefficients"], f["y_max"]) < ego]
+        rights = [f for f in candidates
+                  if np.polyval(f["coefficients"], f["y_max"]) > ego]
+        pairs = []
+        for left in lefts:
+            for right in rights:
+                quality = self._selection_quality(left, right, w)
+                y = min(left["y_max"], right["y_max"])
+                lx, rx = (float(np.polyval(f["coefficients"], y)) for f in (left, right))
+                if not lx < ego < rx:
+                    continue
+                # Existing width/shape gates first, then centered initial pair.
+                # Once locked, temporal gating above overrides this preference.
+                score = (not quality["valid"], abs((lx+rx)/2-ego), rx-lx,
+                         left["residual_px"]+right["residual_px"])
+                pairs.append((score, left, right))
+        if pairs:
+            _, left, right = min(pairs, key=lambda entry: entry[0])
+            return left, right
+        def nearest(fits):
+            return min(fits, key=lambda f: abs(
+                np.polyval(f["coefficients"], f["y_max"])-ego)) if fits else None
+        return nearest(lefts), nearest(rights)
 
     def process(self, mask):
         if mask.ndim != 2:
@@ -460,28 +522,9 @@ class PaperLaneTracker:
                     -1.0,
                 )
 
-        # Missing side, or explicit recovery:
-        # run histogram + sliding-window search.
+        # Evaluate all cold candidates together instead of independent maxima.
         if force_full_search or left is None or right is None:
-            left_seed, right_seed = self._histogram_seeds(mask)
-
-            if force_full_search:
-                left = (
-                    self._sliding_window(mask, left_seed)
-                    if left_seed is not None
-                    else None
-                )
-                right = (
-                    self._sliding_window(mask, right_seed)
-                    if right_seed is not None
-                    else None
-                )
-            else:
-                if left is None and left_seed is not None:
-                    left = self._sliding_window(mask, left_seed)
-
-                if right is None and right_seed is not None:
-                    right = self._sliding_window(mask, right_seed)
+            left, right = self._cold_pair(mask)
 
         result = {
             "left": left,
@@ -499,7 +542,7 @@ class PaperLaneTracker:
         if left is not None and right is not None:
             result["state"] = "BOTH_VISUAL"
 
-            quality = _pair_quality(left, right, self.cfg)
+            quality = self._selection_quality(left, right, w)
 
             # Important recovery path:
             # previous-fit search may find two lanes but they can belong
@@ -509,27 +552,10 @@ class PaperLaneTracker:
             if not quality["valid"] and not force_full_search:
                 result["reacquire_attempted"] = True
 
-                cold_left_seed, cold_right_seed = (
-                    self._histogram_seeds(mask)
-                )
-
-                cold_left = (
-                    self._sliding_window(mask, cold_left_seed)
-                    if cold_left_seed is not None
-                    else None
-                )
-                cold_right = (
-                    self._sliding_window(mask, cold_right_seed)
-                    if cold_right_seed is not None
-                    else None
-                )
+                cold_left, cold_right = self._cold_pair(mask)
 
                 if cold_left is not None and cold_right is not None:
-                    cold_quality = _pair_quality(
-                        cold_left,
-                        cold_right,
-                        self.cfg,
-                    )
+                    cold_quality = self._selection_quality(cold_left, cold_right, w)
 
                     if cold_quality["valid"]:
                         left = cold_left
@@ -568,8 +594,8 @@ class PaperLaneTracker:
                     result["joint_candidate_left_points"] = joint_left["points"]
                     result["joint_candidate_right_points"] = joint_right["points"]
 
-                    joint_quality = _pair_quality(
-                        joint_left, joint_right, self.cfg
+                    joint_quality = self._selection_quality(
+                        joint_left, joint_right, w
                     )
                     result["joint_refit_candidate_reason"] = (
                         joint_quality["reason"]
@@ -617,7 +643,22 @@ class PaperLaneTracker:
         # - PAIR_WEAK / NONE do not get a temporary center.
         #
         # x(y) = ay^2 + by + c, so a lateral offset only changes c.
-        if result["state"] == "LEFT_ONLY" and left is not None:
+        fallback_allowed = (
+            self.last_valid_pair is not None
+            and self.last_valid_width_px >= self.cfg.min_pair_width_px
+            and self.frames_since_valid < self.cfg.reacquire_after_single_frames
+        )
+        if fallback_allowed and result["state"] in {"LEFT_ONLY", "RIGHT_ONLY"}:
+            side = 0 if left is not None else 1
+            visible = left if left is not None else right
+            previous = self.last_valid_pair[side]
+            y = min(visible["y_max"], previous["y_max"])
+            fallback_allowed = (
+                y >= max(visible["y_min"], previous["y_min"])
+                and abs(np.polyval(visible["coefficients"], y)
+                        - np.polyval(previous["coefficients"], y)) <= self.cfg.previous_margin_px
+            )
+        if fallback_allowed and result["state"] == "LEFT_ONLY" and left is not None:
             coeff = np.asarray(
                 left["coefficients"],
                 dtype=float,
@@ -632,7 +673,7 @@ class PaperLaneTracker:
             }
             result["center_source"] = "LEFT_ONLY_OFFSET"
 
-        elif result["state"] == "RIGHT_ONLY" and right is not None:
+        elif fallback_allowed and result["state"] == "RIGHT_ONLY" and right is not None:
             coeff = np.asarray(
                 right["coefficients"],
                 dtype=float,
@@ -663,11 +704,10 @@ class PaperLaneTracker:
             width = q.get("median_width_px")
 
             if width is not None and 350.0 <= float(width) <= 550.0:
-                # Light smoothing avoids one-frame width jumps.
-                self.last_valid_width_px = (
-                    0.8 * self.last_valid_width_px
-                    + 0.2 * float(width)
-                )
+                # Start with a measured width, never blend an assumed width
+                # into the first confirmed single-line fallback.
+                self.last_valid_width_px = (float(width) if self.last_valid_pair is None else
+                    0.8 * self.last_valid_width_px + 0.2 * float(width))
 
         elif pair_state == "PAIR_WEAK":
             self.weak_streak += 1
@@ -681,6 +721,12 @@ class PaperLaneTracker:
             # NONE: there is nothing useful to trust on the next frame.
             self.weak_streak = 0
             self.single_streak = 0
+
+        if pair_state == "PAIR_VALID":
+            self.last_valid_pair = (left, right)
+            self.frames_since_valid = 0
+        else:
+            self.frames_since_valid += 1
 
         self.previous_left = left
         self.previous_right = right
