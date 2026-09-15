@@ -1,0 +1,60 @@
+waypoints:
+  - id: WP01
+    latitude: 37.28903239
+    longitude: 127.10739052
+    activation_radius_m: 3.0
+    missions: [RAMP]
+  - id: WP02
+    latitude: 37.28888662
+    longitude: 127.10727216
+    activation_radius_m: 3.0
+    missions: [INTERSECTION_STRAIGHT_1]
+  - id: WP03
+    latitude: 37.28852634
+    longitude: 127.10698829
+    activation_radius_m: 3.0
+    missions: [S_CURVE]
+  - id: WP04
+    latitude: 37.28878058
+    longitude: 127.10699775
+    activation_radius_m: 3.0
+    missions: [INTERSECTION_STRAIGHT_2]
+  - id: WP05
+    latitude: 37.28868581
+    longitude: 127.10725953
+    activation_radius_m: 3.0
+    missions: [PERPENDICULAR_PARKING]
+  - id: WP06
+    latitude: 37.28850779
+    longitude: 127.10711554
+    activation_radius_m: 3.0
+    missions: [INTERSECTION_LEFT]
+  - id: WP07
+    latitude: 37.28867295
+    longitude: 127.10662554
+    activation_radius_m: 3.0
+    missions: [CHILD_DUMMY]
+  - id: WP08
+    latitude: 37.28858243
+    longitude: 127.10747054
+    activation_radius_m: 3.0
+    missions: [PARALLEL_PARKING]
+  - id: WP09
+    latitude: 37.28870301
+    longitude: 127.10735800
+    activation_radius_m: 3.0
+    missions: [INTERSECTION_RIGHT]
+  - id: WP10
+    latitude: 37.28883966
+    longitude: 127.10732418
+    activation_radius_m: 3.0
+    missions:
+      - SIGNAL_CAR
+      - LANE_CHANGE
+  - id: WP11
+    latitude: 37.28877002
+    longitude: 127.10767208
+    activation_radius_m: 3.0
+    type: finish
+    missions:
+      - FINISH

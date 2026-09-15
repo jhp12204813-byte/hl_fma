@@ -1,4 +1,5 @@
 """GPS triggers the ordered course; mission nodes report completion separately."""
+import json
 from pathlib import Path
 import time
 
@@ -11,7 +12,9 @@ from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from sensor_msgs.msg import NavSatFix
+from std_msgs.msg import String
 
+from fma_mission.control_mode import control_mode_for_mission
 from fma_mission.waypoint_progress import WaypointProgress, load_waypoints
 
 
@@ -23,6 +26,14 @@ class MissionManagerNode(Node):
                                       ParameterDescriptor(read_only=True)).value
         self.progress = WaypointProgress(load_waypoints(path))
         self.last_log = -float('inf')
+        self.control_mode = None
+        self.last_reported_mission = None
+        self.last_diagnostic = None
+        self.proceed_at = None
+        self.feedback_context = None
+        self.control_mode_publisher = self.create_publisher(
+            String, '/mission/control_mode',
+            QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.publisher = self.create_publisher(
             MissionState, '/mission/current',
             QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
@@ -30,6 +41,8 @@ class MissionManagerNode(Node):
             NavSatFix, '/gps/fix', self.on_gps, qos_profile_sensor_data)
         self.status_subscription = self.create_subscription(
             MissionState, '/mission/status', self.on_status, 10)
+        self.feedback_subscription = self.create_subscription(
+            String, '/mission/feedback', self.on_feedback, 10)
         self.timer = self.create_timer(.5, self.tick, clock=Clock(clock_type=ClockType.STEADY_TIME))
         self.publish_state()  # START, then NORMAL_DRIVE on the first timer tick.
 
@@ -41,38 +54,82 @@ class MissionManagerNode(Node):
         msg.active = self.progress.active
         msg.completed = self.progress.state == 'FINISH'
         self.publisher.publish(msg)
+        context = (self.progress.state, self.progress.phase)
+        if context != self.feedback_context:
+            self.proceed_at = None
+            self.feedback_context = context
+        proceed = self.proceed_at is not None and time.monotonic() - self.proceed_at < 1.5
+        mode = control_mode_for_mission(self.progress.state, self.progress.phase, proceed=proceed)
+        if mode != self.control_mode:
+            self.get_logger().info(
+                f'CONTROL MODE {self.control_mode or "INITIAL"} -> {mode} '
+                f'reason=mission_{self.progress.state.lower()}')
+            self.control_mode = mode
+        if self.progress.legacy:
+            if self.last_reported_mission != self.progress.state:
+                self.get_logger().info(
+                    f'MISSION mission={self.progress.state} control_mode={mode} '
+                    f'waypoint={self.progress.target.id}')
+                self.last_reported_mission = self.progress.state
+        else:
+            w = self.progress.target
+            diagnostic = (w.number, self.progress.state, self.progress.phase, mode)
+            if diagnostic != self.last_diagnostic:
+                self.get_logger().info(
+                    f'WAYPOINT number={w.number} id={w.id} type={w.waypoint_type} '
+                    f'hard_point={str(w.hard_point).lower()} '
+                    f'mission={w.mission or w.mission_entry or "null"}')
+                self.get_logger().info(
+                    f'MISSION state={self.progress.state} control_mode={mode} '
+                    f'phase={self.progress.phase or "null"}')
+                self.last_diagnostic = diagnostic
+            for waypoint, event in self.progress.events:
+                reason = 'coordinate unavailable, skipped' if waypoint.number == 57 else event
+                self.get_logger().info(f'WAYPOINT number={waypoint.number} id={waypoint.id} {reason}')
+            self.progress.events.clear()
+        self.control_mode_publisher.publish(String(data=mode))
 
     def tick(self):
         self.progress.start()
         self.publish_state()
 
     def on_gps(self, msg):
-        previous = self.progress.state
         distance = self.progress.gps(msg.latitude, msg.longitude, msg.status.status in (0, 1, 2))
-        if distance is None:
-            return
-        target = self.progress.target
-        if self.progress.state != previous:
-            if self.progress.state == 'FINISH':
-                self.get_logger().info('FINISH waypoint reached; Mission state: FINISH')
-            else:
-                self.get_logger().info(f'{target.id} reached; Activating mission: {self.progress.state}')
+        if distance is not None:
             self.publish_state()
-        elif time.monotonic() - self.last_log >= 2.0:
-            self.get_logger().info(
-                f'TARGET: {target.id} {target.missions[0]} | DISTANCE: {distance:.2f} m '
-                f'| STATE: {self.progress.state}')
-            self.last_log = time.monotonic()
 
     def on_status(self, msg):
-        previous = self.progress.state
         if self.progress.complete(msg.current_mission, msg.completed):
-            if self.progress.active:
-                detail = f'Activating chained mission: {self.progress.state}'
-            else:
-                detail = f'Next target: {self.progress.target.id} {self.progress.target.missions[0]}'
-            self.get_logger().info(f'{previous} completed; {detail}')
             self.publish_state()
+
+    def on_feedback(self, msg):
+        """Minimal JSON adapter; feedback confirms actual phase entry, never a target."""
+        try:
+            data = json.loads(msg.data)
+            if (not isinstance(data, dict) or set(data) - {'mission', 'phase', 'proceed'}
+                    or data.get('mission') != self.progress.state or not self.progress.active):
+                raise ValueError('Invalid or inactive mission')
+            phase = data.get('phase', self.progress.phase)
+            if self.progress.state in ('PERPENDICULAR_PARKING', 'PARALLEL_PARKING'):
+                order = ('APPROACH', 'ALIGN', 'REVERSE', 'PARKED', 'COMPLETE')
+                current = self.progress.phase
+                if (phase not in order or current not in order
+                        or order.index(phase) < order.index(current)
+                        or order.index(phase) > order.index(current) + 1
+                        and not (current == 'APPROACH' and phase == 'REVERSE'
+                                 and self.progress.state == 'PARALLEL_PARKING')):
+                    raise ValueError('Invalid parking phase transition')
+            elif phase != self.progress.phase:
+                raise ValueError('Phase must match processed waypoint')
+            if 'proceed' in data and type(data['proceed']) is not bool:
+                raise ValueError('proceed must be boolean')
+            self.progress.phase = phase
+            self.feedback_context = (self.progress.state, phase)
+            self.proceed_at = time.monotonic() if data.get('proceed') is True else None
+        except (ValueError, TypeError):
+            self.proceed_at = None
+            self.get_logger().warning('Invalid mission feedback; proceed permission revoked')
+        self.publish_state()
 
 
 def main(args=None):

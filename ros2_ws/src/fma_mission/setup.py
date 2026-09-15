@@ -10,6 +10,7 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/config', ['config/waypoints.yaml']),
+        ('share/' + package_name + '/launch', ['launch/mission.launch.py']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -21,5 +22,6 @@ setup(
     entry_points={'console_scripts': [
         'mission_test_runner = fma_mission.mission_test_runner_node:main',
         'mission_manager = fma_mission.mission_manager_node:main',
+        'mission_safety = fma_mission.mission_safety_node:main',
     ]},
 )
