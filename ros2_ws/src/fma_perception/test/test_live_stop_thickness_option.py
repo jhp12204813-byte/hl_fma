@@ -12,7 +12,7 @@ live = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(live)
 
 
-@pytest.mark.parametrize('value,expected', [(None, .04), ('0.30', .30)])
+@pytest.mark.parametrize('value,expected', [(None, .30), ('0.30', .30)])
 def test_live_min_thickness_configuration(monkeypatch, value, expected):
     captured = []
     class Done(Exception): pass
@@ -25,6 +25,7 @@ def test_live_min_thickness_configuration(monkeypatch, value, expected):
     with pytest.raises(Done): live.main([] if value is None else ['--stop-min-thickness-m', value])
     assert captured[0].min_thickness_m == expected
     assert captured[0].max_thickness_m == .55
+    # Keep the generic detector default unchanged; only live competition/field diagnostics default to 0.30 m.
     assert live.StopLineConfig().min_thickness_m == .04
     camera.assert_not_called()
 
