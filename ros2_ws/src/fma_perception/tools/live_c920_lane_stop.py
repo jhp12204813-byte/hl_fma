@@ -30,8 +30,8 @@ def parser():
     ap.add_argument('--competition-tracking', action='store_true', help='Metric pair/persistent single-side diagnostics')
     ap.add_argument('--nominal-lane-width-m', type=float, default=3.5)
     ap.add_argument('--stop-min-thickness-m', type=float, default=None,
-                    help='Diagnostic detector minimum thickness in meters (default: existing config)')
-    ap.add_argument('--device', default='/dev/video0')
+                    help='Diagnostic detector minimum thickness in meters (default: 0.30 for live field/competition diagnostics)')
+    ap.add_argument('--device', default='/dev/video2')
     ap.add_argument('--width', type=int, default=640)
     ap.add_argument('--height', type=int, default=480)
     ap.add_argument('--fps', type=float, default=30.0)
@@ -275,76 +275,54 @@ def main(argv=None):
                             (cv2.CAP_PROP_FRAME_WIDTH, args.width),
                             (cv2.CAP_PROP_FRAME_HEIGHT, args.height),
                             (cv2.CAP_PROP_FPS, args.fps)]:
-            if not cap.set(prop, value):
-                print(f'Camera property {prop} was not accepted; check negotiated format.', file=sys.stderr)
-        print(f"Camera: {args.device} V4L2 "
-              f"{cap.get(cv2.CAP_PROP_FRAME_WIDTH):.0f}x{cap.get(cv2.CAP_PROP_FRAME_HEIGHT):.0f} "
-              f"FPS={cap.get(cv2.CAP_PROP_FPS):.1f}; config={args.config}")
-        if args.record:
-            record = args.record.expanduser()
-            if record.exists():
-                raise FileExistsError(f'Recording already exists: {record}')
-            writer = cv2.VideoWriter(str(record), cv2.VideoWriter_fourcc(*'mp4v'), args.fps,
-                                     (bev.image_width + bev.width,
-                                      max(bev.image_height, bev.height) + 240))
-            if not writer.isOpened():
-                raise RuntimeError(f'Cannot create recording: {record}')
-        last_frame = time.monotonic()
-        last_log = -math.inf
-        measured_fps = 0.0
+            cap.set(prop, value)
+        last = time.monotonic()
+        frames = 0
+        fps = 0.0
         while True:
             ok, frame = cap.read()
-            if not ok:
-                raise RuntimeError('Camera frame read failed; stopping live display')
-            if frame.shape[:2] != (bev.image_height, bev.image_width):
-                raise RuntimeError(f'Camera frame {frame.shape[:2]} does not match calibration')
+            if not ok or frame is None:
+                raise RuntimeError('C920 read failed')
             _, mask, white_bev = make_mask(frame, bev)
             if args.competition_tracking:
-                tracking = tracker.process(mask, timestamp=time.monotonic())
-                lane = tracker.to_lane_result(tracking)
-                lane['_competition'] = tracking
+                result = tracker.process(mask, timestamp=time.monotonic())
+                lane = result['lane_result']
+                lane['_competition'] = result
             else:
                 lane = tracker.process(mask)
             stop = detector.detect(white_bev, lane)
             tracked = stop_tracker.update(stop)
+            frames += 1
             now = time.monotonic()
-            instant = 1.0 / max(now - last_frame, 1e-9)
-            measured_fps = instant if not measured_fps else .9 * measured_fps + .1 * instant
-            last_frame = now
-            canvas, status = annotate(frame, bev, mask, lane, stop, tracked, measured_fps)
+            if now - last >= 1.0:
+                fps = frames / (now - last)
+                frames = 0
+                last = now
+            canvas, summary = annotate(frame, bev, mask, lane, stop, tracked, fps)
             cv2.imshow(WINDOW, canvas)
-            key = cv2.waitKey(1) & 0xFF
+            if writer is None and args.record:
+                args.record.parent.mkdir(parents=True, exist_ok=True)
+                writer = cv2.VideoWriter(str(args.record), cv2.VideoWriter_fourcc(*'mp4v'),
+                                         args.fps, (canvas.shape[1], canvas.shape[0]))
+                if not writer.isOpened():
+                    raise RuntimeError(f'Cannot open video writer: {args.record}')
             if writer is not None:
                 writer.write(canvas)
-            if now - last_log >= 1.0:
-                print(status, flush=True)
-                if args.competition_tracking:
-                    print('COMPETITION ' + ' '.join(f'{k}={tracking[k]}' for k in (
-                        'candidate_count', 'selected_pair_score', 'second_pair_score', 'selected_lane_width_m',
-                        'expected_lane_width_m', 'width_delta_m', 'heading_diff_deg', 'pair_overlap_m', 'reject_reason')), flush=True)
-                else:
-                    print(rejection_debug(bev, tracker, detector, lane, stop, white_bev), flush=True)
-                last_log = now
-            if key in (ord('q'), ord('Q'), 27):
+            print(summary)
+            print(rejection_debug(bev, tracker, detector, lane, stop, white_bev))
+            key = cv2.waitKey(1) & 0xff
+            if key in (ord('q'), 27):
                 break
-            if key in (ord('r'), ord('R')):
+            if key == ord('r'):
                 tracker.reset()
                 stop_tracker.reset()
-                print('Lane and stop trackers reset (existing reset APIs).', flush=True)
     finally:
         if cap is not None:
             cap.release()
         if writer is not None:
             writer.release()
         cv2.destroyAllWindows()
-    return 0
 
 
 if __name__ == '__main__':
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        sys.exit(0)
-    except Exception as error:
-        print(f'Live C920 failed: {error}', file=sys.stderr)
-        sys.exit(1)
+    main()
