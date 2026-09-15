@@ -234,9 +234,21 @@ class StopLineDetector:
         good_rows = np.flatnonzero(row_good)
 
         if len(good_rows):
+            # Worn/cracked stop paint often breaks a physical 30-55 cm band
+            # into several short runs of good rows.  Merge nearby runs using
+            # the existing physical merge_band_gap_m limit instead of
+            # requiring pixel-perfect row adjacency.
+            max_gap_px = max(
+                1,
+                int(round(
+                    cfg.merge_band_gap_m
+                    / self.resolution_m
+                )),
+            )
+
             groups = np.split(
                 good_rows,
-                np.where(np.diff(good_rows) > 1)[0] + 1,
+                np.where(np.diff(good_rows) > max_gap_px)[0] + 1,
             )
 
             for rows in groups:

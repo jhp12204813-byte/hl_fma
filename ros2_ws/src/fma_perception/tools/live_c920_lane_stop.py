@@ -109,8 +109,13 @@ def annotate(frame, bev, mask, lane, stop, tracked, fps):
     else:
         debug = right_near_overlay(debug, bev, mask, lane)
     quality = lane.get('pair_quality') or {}
-    valid = bool(quality.get('valid', False))
-    state = lane.get('pair_state', lane['state'])
+    competition = lane.get('_competition')
+    if competition is not None:
+        valid = bool(competition.get('valid', False))
+        state = competition.get('source', 'INVALID')
+    else:
+        valid = bool(quality.get('valid', False))
+        state = lane.get('pair_state', lane['state'])
     distance = stop['stop_line_distance_m']
     distance_text = '--' if distance is None else f'{distance:.2f}'
     # Match the already selected detector result; do not select a new stop line.
@@ -168,9 +173,16 @@ def rejection_debug(bev, tracker, detector, lane, stop, white_bev):
     quality = lane.get('pair_quality') or {}
     measured = quality.get('median_width_px')
     width = '--' if measured is None else f'{measured:.1f}px/{measured * bev.resolution_m:.2f}m'
-    minimum = tracker.cfg.min_pair_width_px
-    lines = [f"LANE DEBUG width={width} allowed_min={minimum:.1f}px/"
-             f"{minimum * bev.resolution_m:.2f}m allowed_max=NONE "
+
+    if hasattr(tracker.cfg, 'min_pair_width_px'):
+        minimum_px = tracker.cfg.min_pair_width_px
+        minimum_m = minimum_px * bev.resolution_m
+    else:
+        minimum_m = tracker.cfg.min_lane_width_m
+        minimum_px = minimum_m / bev.resolution_m
+
+    lines = [f"LANE DEBUG width={width} allowed_min={minimum_px:.1f}px/"
+             f"{minimum_m:.2f}m allowed_max=NONE "
              f"reason={quality.get('reason', 'pair_unavailable')}"]
     cfg = detector.config
     raw, corridor = stop['debug_mask'], stop['corridor_mask']
@@ -191,7 +203,11 @@ def rejection_debug(bev, tracker, detector, lane, stop, white_bev):
         longest[v] = detector._longest_run(continuity[v, x0:x1]) / float(x1-x0)
     good = active & (coverage >= cfg.min_row_coverage_ratio) & (longest >= cfg.min_continuous_ratio)
     rows = np.flatnonzero(good)
-    groups = np.split(rows, np.flatnonzero(np.diff(rows) > 1) + 1) if len(rows) else []
+    max_gap_px = max(1, int(round(cfg.merge_band_gap_m / bev.resolution_m)))
+    groups = (
+        np.split(rows, np.flatnonzero(np.diff(rows) > max_gap_px) + 1)
+        if len(rows) else []
+    )
     bands = []
     for group in groups:
         thickness = len(group) * bev.resolution_m
@@ -286,7 +302,7 @@ def main(argv=None):
             _, mask, white_bev = make_mask(frame, bev)
             if args.competition_tracking:
                 result = tracker.process(mask, timestamp=time.monotonic())
-                lane = result['lane_result']
+                lane = tracker.to_lane_result(result)
                 lane['_competition'] = result
             else:
                 lane = tracker.process(mask)

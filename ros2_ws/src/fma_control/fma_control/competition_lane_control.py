@@ -35,6 +35,15 @@ def calculate_competition_command(tracking, tracker, config, options):
     else:
         pwm = options['degraded_pwm']
     pwm = min(options['drive_pwm'], pwm) if result['valid'] else 0
+
+    # At high speed the near part of a single boundary may temporarily
+    # disappear. Keep steering from the reliable far boundary, but slow down
+    # until near-field observation returns.
+    if (result['valid']
+            and source in ('SINGLE_LEFT_TRACK', 'SINGLE_RIGHT_TRACK')
+            and result.get('observed_min') is not None
+            and result['observed_min'] > 3.60):
+        pwm = min(pwm, 160)
     result.update(control_source=source, motion_control_source=source,
                   motion_observed_min=result['observed_min'], motion_used_lookahead=result['used_lookahead'],
                   motion_valid=result['valid'], requested_pwm=pwm,

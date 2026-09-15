@@ -32,27 +32,70 @@ def find_video(session_dir):
 
 def make_mask(frame, bev):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # Same starting thresholds as D435i lane pipeline.
-    yellow = cv2.inRange(
-        hsv,
-        (5, 25, 60),
-        (40, 255, 255),
+    # -------------------------------------------------
+    # 1. Warp brightness / saturation first
+    # -------------------------------------------------
+    gray_bev = cv2.warpPerspective(
+        gray, bev.H, (bev.width, bev.height),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
     )
 
-    white = cv2.inRange(
-        hsv,
-        (0, 0, 170),
-        (179, 65, 255),
+    sat_bev = cv2.warpPerspective(
+        hsv[:, :, 1], bev.H, (bev.width, bev.height),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
     )
 
-    # C920 lane A/B: yellow-only.
-    # Avoid crosswalk/curb/bright pavement entering the lane tracker.
-    src_mask = yellow
+    value_bev = cv2.warpPerspective(
+        hsv[:, :, 2], bev.H, (bev.width, bev.height),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
+    )
 
-    # Yellow lane mask -> BEV.
-    bev_mask = cv2.warpPerspective(
-        src_mask,
+    # Horizontal neighbourhood = local road brightness.
+    bg_width_px = max(21, int(round(0.45 / bev.resolution_m)))
+    if bg_width_px % 2 == 0:
+        bg_width_px += 1
+
+    road_background = cv2.morphologyEx(
+        gray_bev,
+        cv2.MORPH_OPEN,
+        np.ones((3, bg_width_px), np.uint8),
+    )
+
+    local_contrast = cv2.subtract(gray_bev, road_background)
+
+    # -------------------------------------------------
+    # 2. Yellow lane
+    #
+    # Strong yellow:
+    #   sunlight-coloured asphalt must NOT enter simply
+    #   because saturation is 25~60.
+    #
+    # Washed yellow:
+    #   allow low saturation only when it is locally
+    #   brighter AND longitudinal.
+    # -------------------------------------------------
+    yellow_strong_src = cv2.inRange(
+        hsv,
+        (7, 70, 65),
+        (38, 255, 255),
+    )
+
+    yellow_washed_src = cv2.inRange(
+        hsv,
+        (7, 25, 100),
+        (38, 69, 255),
+    )
+
+    yellow_strong_bev = cv2.warpPerspective(
+        yellow_strong_src,
         bev.H,
         (bev.width, bev.height),
         flags=cv2.INTER_NEAREST,
@@ -60,10 +103,8 @@ def make_mask(frame, bev):
         borderValue=0,
     )
 
-    # White is kept completely separate from lane detection.
-    # It is used only for stop-line / crosswalk detection.
-    white_bev = cv2.warpPerspective(
-        white,
+    yellow_washed_bev = cv2.warpPerspective(
+        yellow_washed_src,
         bev.H,
         (bev.width, bev.height),
         flags=cv2.INTER_NEAREST,
@@ -71,8 +112,98 @@ def make_mask(frame, bev):
         borderValue=0,
     )
 
-    return src_mask, bev_mask, white_bev
+    # Strong yellow is kept if saturated OR locally distinct.
+    strong_keep = (
+        (yellow_strong_bev > 0)
+        & ((sat_bev >= 105) | (local_contrast >= 14))
+    ).astype(np.uint8) * 255
 
+    # Low-saturation yellow needs much stronger geometric evidence.
+    washed_keep = (
+        (yellow_washed_bev > 0)
+        & (local_contrast >= 26)
+    ).astype(np.uint8) * 255
+
+    washed_keep = cv2.morphologyEx(
+        washed_keep,
+        cv2.MORPH_OPEN,
+        np.ones((17, 3), np.uint8),
+    )
+    washed_keep = cv2.morphologyEx(
+        washed_keep,
+        cv2.MORPH_CLOSE,
+        np.ones((11, 3), np.uint8),
+    )
+
+    yellow_bev = cv2.bitwise_or(strong_keep, washed_keep)
+
+    # For source/debug display only.
+    yellow_src = cv2.bitwise_or(
+        yellow_strong_src,
+        yellow_washed_src,
+    )
+
+    # -------------------------------------------------
+    # 3. White / colour-washed longitudinal lane
+    #
+    # Require stronger local contrast than before.
+    # Direct sunlight patches are generally broad;
+    # actual lane paint is narrow + longitudinal.
+    # -------------------------------------------------
+    bright_paint = (
+        (gray_bev >= 95)
+        & (local_contrast >= 28)
+        & (sat_bev <= 100)
+    ).astype(np.uint8) * 255
+
+    longitudinal = cv2.morphologyEx(
+        bright_paint,
+        cv2.MORPH_OPEN,
+        np.ones((23, 3), np.uint8),
+    )
+
+    longitudinal = cv2.morphologyEx(
+        longitudinal,
+        cv2.MORPH_CLOSE,
+        np.ones((11, 3), np.uint8),
+    )
+
+    bev_mask = cv2.bitwise_or(
+        yellow_bev,
+        longitudinal,
+    )
+
+    # -------------------------------------------------
+    # 4. Stop line stays independent
+    # -------------------------------------------------
+    stop_window_px = max(
+        3,
+        int(round(0.70 / bev.resolution_m))
+    )
+    if stop_window_px % 2 == 0:
+        stop_window_px += 1
+
+    stop_background = cv2.morphologyEx(
+        value_bev,
+        cv2.MORPH_OPEN,
+        np.ones((stop_window_px, 1), np.uint8),
+    )
+
+    stop_contrast = cv2.subtract(
+        value_bev,
+        stop_background,
+    )
+
+    white_bev = (
+        (value_bev >= 135)
+        & (sat_bev <= 90)
+        & (stop_contrast >= 18)
+    ).astype(np.uint8) * 255
+
+    # Only definite yellow is removed from stop-line candidates.
+    white_bev[yellow_bev > 0] = 0
+
+    return yellow_src, bev_mask, white_bev
 
 def draw_fit(img, fit, color):
     if fit is None:
