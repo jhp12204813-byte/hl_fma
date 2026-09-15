@@ -82,7 +82,7 @@ def calculate_command(lane, bev, config=FollowConfig(), *, field_stop_test=False
             return {**invalid, 'reason': 'invalid_pair_control_max'}
         control_max = pair_control_max_m
     if field_stop_test and allow_single_side_test and source == 'TEMPORARY_CENTER':
-        if not math.isfinite(single_side_control_max_m) or not 1.8 <= single_side_control_max_m <= 3.30:
+        if not math.isfinite(single_side_control_max_m) or not 1.8 <= single_side_control_max_m <= 5.20:
             return {**invalid, 'reason': 'invalid_single_side_control_max'}
         control_max = single_side_control_max_m
     allowed_max = min(control_max, observed_max - config.lookahead_margin_m)
@@ -99,7 +99,7 @@ def calculate_command(lane, bev, config=FollowConfig(), *, field_stop_test=False
         return {**invalid, 'reason': 'target_outside_bev'}
     x, _ = bev.bev_pixel_to_ground(u, v)
     lateral = -x
-    heading = math.atan(slope)
+    heading = math.atan(-slope)
     calibration = ConversionConfig()
     steering = max(calibration.steering_right_angle_rad,
                    min(calibration.steering_left_angle_rad,
@@ -146,7 +146,8 @@ class LaneFollowNode(Node):
         if competition_tracking:
             from fma_perception.competition_lane_tracker import MetricLaneConfig
             defaults.update(drive_pwm=120, single_drive_pwm=64, degraded_pwm=40,
-                            pair_return_blend_sec=.3, obstacle_stop_topic='/safety/obstacle_stop')
+                            pair_return_blend_sec=.3, obstacle_stop_topic='/safety/obstacle_stop',
+                            c920_lock_exposure=True, c920_manual_exposure=156, c920_gain=0)
             defaults.update(vars(MetricLaneConfig()))
         self.options = {name: self.declare_parameter(name, value,
                         ParameterDescriptor(read_only=True)).value for name, value in defaults.items()}
@@ -167,8 +168,8 @@ class LaneFollowNode(Node):
             if type(pwm) is not int or not 0 <= pwm <= 799:
                 raise ValueError('drive_pwm must be an integer within 0..799')
             approach_pwm = self.options['stop_approach_pwm']
-            if type(approach_pwm) is not int or not 0 <= approach_pwm < 64:
-                raise ValueError('stop_approach_pwm must be an integer within 0..63')
+            if type(approach_pwm) is not int or not 0 <= approach_pwm <= 799:
+                raise ValueError('stop_approach_pwm must be an integer within 0..799')
             timeout = self.options['stop_approach_timeout_sec']
             if not math.isfinite(timeout) or timeout <= 0:
                 raise ValueError('stop_approach_timeout_sec must be finite and positive')
@@ -176,8 +177,8 @@ class LaneFollowNode(Node):
             if not math.isfinite(distance) or distance <= 0:
                 raise ValueError('stop_trigger_distance_m must be finite and positive')
             control_max = self.options['single_side_control_max_m']
-            if not math.isfinite(control_max) or not 1.8 <= control_max <= 3.30:
-                raise ValueError('single_side_control_max_m must be within 1.8..3.30 m')
+            if not math.isfinite(control_max) or not 1.8 <= control_max <= 5.20:
+                raise ValueError('single_side_control_max_m must be within 1.8..5.20 m')
             thickness = self.options['stop_min_thickness_m']
             if not math.isfinite(thickness) or not 0 < thickness <= StopLineConfig().max_thickness_m:
                 raise ValueError('stop_min_thickness_m must be positive and within detector maximum')
@@ -191,6 +192,14 @@ class LaneFollowNode(Node):
                     raise ValueError(f'{name} must be an integer in 0..799')
             if self.options['degraded_pwm'] > self.options['single_drive_pwm']:
                 raise ValueError('degraded_pwm must not exceed single_drive_pwm')
+            if type(self.options['c920_lock_exposure']) is not bool:
+                raise ValueError('c920_lock_exposure must be boolean')
+            exposure = self.options['c920_manual_exposure']
+            gain = self.options['c920_gain']
+            if type(exposure) is not int or not 3 <= exposure <= 2047:
+                raise ValueError('c920_manual_exposure must be an integer in 3..2047')
+            if type(gain) is not int or not 0 <= gain <= 255:
+                raise ValueError('c920_gain must be an integer in 0..255')
             from fma_control.competition_lane_control import PairReturnBlend
             self.pair_return_blend = PairReturnBlend(self.options['pair_return_blend_sec'])
         self.bev = C920BEV(self.options['config'])
@@ -236,6 +245,18 @@ class LaneFollowNode(Node):
                                 (cv2.CAP_PROP_FRAME_WIDTH, 640), (cv2.CAP_PROP_FRAME_HEIGHT, 480),
                                 (cv2.CAP_PROP_FPS, 30), (cv2.CAP_PROP_BUFFERSIZE, 1)):
                 cap.set(prop, value)
+
+            if self.options.get('c920_lock_exposure', False):
+                from fma_control.c920_camera_controls import apply_c920_manual_controls
+                controls = apply_c920_manual_controls(
+                    self.options['device'],
+                    self.options['c920_manual_exposure'],
+                    self.options['c920_gain'],
+                )
+                self.get_logger().info(
+                    'C920 competition controls locked: ' + controls.replace('\n', ', ')
+                )
+
             previous = time.monotonic()
             while not self.stopping.is_set():
                 # Timestamp BEFORE read so a blocked read/slow fit cannot create fresh motion.

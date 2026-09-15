@@ -12,7 +12,7 @@ import numpy as np
 @dataclass(frozen=True)
 class MetricLaneConfig:
     nominal_lane_width_m: float = 3.5
-    min_lane_width_m: float = 2.0
+    min_lane_width_m: float = 2.9
     max_lane_width_m: float = 6.0
     ema_alpha: float = .15
     min_component_length_m: float = .25
@@ -331,17 +331,45 @@ class CompetitionLaneTracker:
         usable = sorted((c for c in candidates if not c['reject_reason']), key=lambda c: c['score'], reverse=True)
         if not usable:
             return result
-        # Two reliable sides without a plausible pair must not silently become single tracking.
-        if len({c['side'] for c in usable}) > 1:
-            result['reject_reason'] = 'inconsistent_pair'
-            return result
-        if len(usable)>1 and usable[0]['score']-usable[1]['score'] < self.cfg.single_score_gap:
+        # If a valid pair cannot be formed, fall back to ONE reliable boundary.
+        # Ambiguity is checked within each side, not between left and right:
+        # two real lane boundaries may both be strong even when their pair geometry
+        # is temporarily inconsistent.
+        side_best = {}
+        for side in ('left', 'right'):
+            side_candidates = sorted(
+                (c for c in usable if c['side'] == side),
+                key=lambda c: c['score'],
+                reverse=True,
+            )
+            if not side_candidates:
+                continue
+            if (len(side_candidates) > 1
+                    and side_candidates[0]['score'] - side_candidates[1]['score']
+                    < self.cfg.single_score_gap):
+                continue
+            side_best[side] = side_candidates[0]
+
+        if not side_best:
             result['reject_reason'] = 'ambiguous_boundary'
             return result
-        boundary = usable[0]
+
+        # Preserve the previously used single side when possible to avoid
+        # left/right switching. Otherwise choose the strongest boundary.
+        preferred = None
+        if self.source == 'SINGLE_LEFT_TRACK':
+            preferred = 'left'
+        elif self.source == 'SINGLE_RIGHT_TRACK':
+            preferred = 'right'
+
+        boundary = (
+            side_best[preferred]
+            if preferred in side_best
+            else max(side_best.values(), key=lambda c: c['score'])
+        )
         side = boundary['side']
-        learned = self.left_offset_m if side == 'left' else self.right_offset_m
-        offset = learned if learned is not None else self.cfg.nominal_lane_width_m/2
+        # Single boundary policy: always assume nominal 3.5 m lane width.
+        offset = self.cfg.nominal_lane_width_m / 2
         center = normal_offset_curve(boundary['coefficients'], boundary['y_min_m'], boundary['y_max_m'],
                                      offset if side == 'left' else -offset)
         if center is None or center['approximation_error_m'] > self.cfg.residual_limit_m:
@@ -351,7 +379,7 @@ class CompetitionLaneTracker:
                       boundary_heading=boundary['heading'], boundary_curvature=boundary['curvature'],
                       lateral_offset_target=offset, confidence=boundary['score'],
                       confidence_grade='HIGH' if boundary['score'] >= self.cfg.high_confidence else 'DEGRADED',
-                      offset_source='LEARNED' if learned is not None else 'NOMINAL',
+                      offset_source='NOMINAL',
                       reject_reason=None, **{side: boundary})
         if not self._external_valid(result):
             return result
@@ -378,8 +406,7 @@ class CompetitionLaneTracker:
             boundary = tracking.get(side)
             if not boundary or boundary['reject_reason'] or boundary['score'] < self.cfg.valid_confidence:
                 continue
-            learned = self.left_offset_m if side == 'left' else self.right_offset_m
-            offset = learned if learned is not None else self.cfg.nominal_lane_width_m / 2
+            offset = self.cfg.nominal_lane_width_m / 2
             center = normal_offset_curve(boundary['coefficients'], boundary['y_min_m'], boundary['y_max_m'],
                                          offset if side == 'left' else -offset)
             if center is None or center['approximation_error_m'] > self.cfg.residual_limit_m:
@@ -389,7 +416,7 @@ class CompetitionLaneTracker:
                          side: boundary, 'virtual_center': center, 'confidence': boundary['score'],
                          'confidence_grade': 'HIGH' if boundary['score'] >= self.cfg.high_confidence else 'DEGRADED',
                          'boundary_heading': boundary['heading'], 'boundary_curvature': boundary['curvature'],
-                         'lateral_offset_target': offset, 'offset_source': 'LEARNED' if learned is not None else 'NOMINAL'}
+                         'lateral_offset_target': offset, 'offset_source': 'NOMINAL'}
             if self._external_valid(candidate):
                 results.append(candidate)
         return results

@@ -24,7 +24,7 @@ def road(bev, width=3.5, sides=('left', 'right'), shift=0., slope=0., curvature=
     return mask
 
 
-@pytest.mark.parametrize('width', [2.7, 3.05, 3.2, 4.1, 4.6])
+@pytest.mark.parametrize('width', [3.05, 3.2, 4.1, 4.6])
 def test_same_configuration_learns_different_pair_widths(bev, width):
     tracker = CompetitionLaneTracker(bev)
     result = tracker.process(road(bev, width), timestamp=1.)
@@ -43,7 +43,8 @@ def test_single_tracks_indefinitely_without_relearning(bev, side):
         result = tracker.process(road(bev, 4.1, (side,), shift=.03), timestamp=timestamp)
         assert result['valid'] and result['source'] == f'SINGLE_{side.upper()}_TRACK'
         assert result['confidence'] >= tracker.cfg.valid_confidence
-        assert result['offset_source'] == 'LEARNED'
+        assert result['offset_source'] == 'NOMINAL'
+        assert result['lateral_offset_target'] == pytest.approx(1.75)
         assert (tracker.expected_lane_width_m, tracker.left_offset_m, tracker.right_offset_m) == learned
         for key in ('virtual_center', 'boundary_heading', 'boundary_curvature', 'lateral_offset_target'):
             assert result[key] is not None
@@ -67,8 +68,9 @@ def test_cold_single_uses_configurable_prior_then_pair_learning(bev):
     tracker.process(road(bev, 3.2), timestamp=2.)
     before = tracker.right_offset_m
     result = tracker.process(road(bev, 3.2, ('right',)), timestamp=100.)
-    assert result['offset_source'] == 'LEARNED'
-    assert result['lateral_offset_target'] == pytest.approx(before)
+    assert result['offset_source'] == 'NOMINAL'
+    assert result['lateral_offset_target'] == pytest.approx(1.6)
+    assert tracker.right_offset_m == before
 
 
 def test_chunky_curb_blocks_rejected(bev):
@@ -180,3 +182,8 @@ def test_large_width_change_penalized_without_learning(bev):
     result = tracker.process(road(bev, 4.1), timestamp=1.1)
     assert result['confidence_grade'] == 'DEGRADED'
     assert tracker.expected_lane_width_m == pytest.approx(3.)
+
+def test_pair_width_below_minimum_is_not_accepted_as_pair(bev):
+    tracker = CompetitionLaneTracker(bev)
+    result = tracker.process(road(bev, 2.7), timestamp=1.)
+    assert result['source'] != 'PAIR_TRACK'
