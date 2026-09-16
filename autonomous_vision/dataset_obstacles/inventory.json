@@ -1,0 +1,934 @@
+{
+  "classes": [
+    "child_dummy",
+    "vehicle_obstacle"
+  ],
+  "legacy_mapping": {
+    "5": 0,
+    "6": 1
+  },
+  "policy": "whole_session_only; legacy positive images only",
+  "archive_sha256": "752a15a3a52d10f690945cecb92ec7ee1745e65722864d51ecd4521a7dcc9a58",
+  "photo_interval_seconds": 0.8,
+  "items": [
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_photos/P20260905_152037278_93276DFF-3BE9-4A27-9818-3C40CB02BA9C.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_photos/P20260905_152037278_93276DFF-3BE9-4A27-9818-3C40CB02BA9C.txt",
+      "image": "images/train/20260905_b_photos/P20260905_152037278_93276DFF-3BE9-4A27-9818-3C40CB02BA9C.jpg",
+      "split": "train",
+      "session": "20260905_b_photos",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_photos/P20260905_152743213_19C8D57D-3657-49D2-AC47-329C67067DF6.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_photos/P20260905_152743213_19C8D57D-3657-49D2-AC47-329C67067DF6.txt",
+      "image": "images/train/20260905_b_photos/P20260905_152743213_19C8D57D-3657-49D2-AC47-329C67067DF6.jpg",
+      "split": "train",
+      "session": "20260905_b_photos",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000000.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000000.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000000.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000030.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000030.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000030.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000060.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000060.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000060.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000090.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000090.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000090.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000120.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000120.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000120.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000150.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000150.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000150.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000180.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000180.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000180.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000210.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000210.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000210.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000240.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000240.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000240.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000270.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000270.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000270.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000300.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000300.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000300.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000330.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000330.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000330.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000360.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000360.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000360.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000390.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000390.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000390.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000420.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000420.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000420.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000450.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000450.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000450.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000480.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000480.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000480.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000510.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000510.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000510.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000540.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000540.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000540.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000570.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000570.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000570.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000600.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000600.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000600.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000630.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000630.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000630.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000660.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000660.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000660.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000690.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000690.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000690.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000720.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000720.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000720.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000750.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000750.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000750.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000780.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000780.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000780.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000810.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000810.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000810.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000840.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000840.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000840.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000870.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000870.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000870.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000900.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000900.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000900.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000930.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000930.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000930.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000960.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000960.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000960.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00000990.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00000990.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00000990.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00001020.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00001020.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00001020.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00001050.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00001050.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00001050.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00001080.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00001080.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00001080.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00001110.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00001110.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00001110.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00001140.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00001140.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00001140.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00001170.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00001170.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00001170.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_b_video_152846/frame_00001200.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_b_video_152846/frame_00001200.txt",
+      "image": "images/train/20260905_b_video_152846/frame_00001200.jpg",
+      "split": "train",
+      "session": "20260905_b_video_152846",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/train/20260905_c_photos/P20260905_155409710_A26753CF-A18A-4E9A-A8E1-D74571D79C90.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/train/20260905_c_photos/P20260905_155409710_A26753CF-A18A-4E9A-A8E1-D74571D79C90.txt",
+      "image": "images/train/20260905_c_photos/P20260905_155409710_A26753CF-A18A-4E9A-A8E1-D74571D79C90.jpg",
+      "split": "train",
+      "session": "20260905_c_photos",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00000870.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00000870.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00000870.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00000900.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00000900.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00000900.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00000930.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00000930.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00000930.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001080.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001080.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001080.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001110.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001110.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001110.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001140.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001140.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001140.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001230.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001230.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001230.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001260.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001260.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001260.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001290.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001290.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001290.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001320.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001320.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001320.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001350.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001350.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001350.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001380.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001380.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001380.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001470.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001470.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001470.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001500.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001500.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001500.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001530.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001530.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001530.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001560.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001560.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001560.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001590.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001590.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001590.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001620.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001620.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001620.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001650.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001650.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001650.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001680.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001680.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001680.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001710.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001710.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001710.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001740.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001740.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001740.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001770.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001770.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001770.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001800.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001800.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001800.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001830.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001830.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001830.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_d_video_141652/frame_00001860.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_d_video_141652/frame_00001860.txt",
+      "image": "images/val/20260906_d_video_141652/frame_00001860.jpg",
+      "split": "val",
+      "session": "20260906_d_video_141652",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_e_photos/P20260906_143749179_E5988815-144D-4171-87AC-AFAC76C83B4D.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_e_photos/P20260906_143749179_E5988815-144D-4171-87AC-AFAC76C83B4D.txt",
+      "image": "images/val/20260906_e_photos/P20260906_143749179_E5988815-144D-4171-87AC-AFAC76C83B4D.jpg",
+      "split": "val",
+      "session": "20260906_e_photos",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/dataset/detection/images/val/20260906_e_photos/P20260906_143749375_32637D0C-9EEE-4B42-AAC4-FECFA128D3D6.jpg",
+      "source_label": "/home/sy/hl_fma/dataset/detection/annotations/val/20260906_e_photos/P20260906_143749375_32637D0C-9EEE-4B42-AAC4-FECFA128D3D6.txt",
+      "image": "images/val/20260906_e_photos/P20260906_143749375_32637D0C-9EEE-4B42-AAC4-FECFA128D3D6.jpg",
+      "split": "val",
+      "session": "20260906_e_photos",
+      "status": "mapped_label"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203718685_31376525-91BD-4EE0-A6A0-CFE4DA103E04.HEIC",
+      "sha256": "a2688627717097f3f5043e9e91db64d7efa20ddab2b82eeebf3e2059742a4f4e",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203718685_31376525-91BD-4EE0-A6A0-CFE4DA103E04.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203719152_D6FC593D-5F12-45E5-B242-F5BF643D3AF2.HEIC",
+      "sha256": "57a2144ab6eb5b01a1150b9c3bcf130667bc470df6cb62a1676e659561aa60a6",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203719702_5A191529-B4BD-4A03-B920-E6C4163D984E.HEIC",
+      "sha256": "e3a06360986701225018562796f761a66babc2053003df1cfc1703b399974e4b",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203719702_5A191529-B4BD-4A03-B920-E6C4163D984E.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203720208_0C53545A-8F2E-48EA-992A-5A77B73D7730.HEIC",
+      "sha256": "430965f33afa0f7f0f5d06904be0d977ea38093f4cc37f1c431116bc39b86b24",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203723703_D9A314AF-A30E-4902-84D3-86FE1D9108F1.HEIC",
+      "sha256": "f21180b700a0f1f1a3904f69d4c460a69e3d7f057924c72b6dd041b9f1cdbc56",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203723703_D9A314AF-A30E-4902-84D3-86FE1D9108F1.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203726338_F999655B-7EC0-448D-95D8-593DFF2A2D26.HEIC",
+      "sha256": "7ae84927a14e6f90fb2b3e3cf94b2c29635ee1f919545cf42a093d571e771d69",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203726338_F999655B-7EC0-448D-95D8-593DFF2A2D26.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203726675_AA913E65-D3BE-42A9-A6E3-D5BAA7388DD5.HEIC",
+      "sha256": "a7229879d6b146524b1ac7f1c08da428050385e771df11cc267ad7d49264793e",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203727036_67D1099C-1B82-491D-B71F-B520CDF20D6C.HEIC",
+      "sha256": "c8906050a7763f08c546bed4f6cbf9e5bb7c10f8ec258a07ad73a5f62a3709eb",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203727248_AD1D8227-4CEF-4C4D-9C11-FDD92EC20E16.HEIC",
+      "sha256": "dc4b3580bf99ffcd60106245dd67956eea32f070e8c47a7988d7835fee3a009e",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203727248_AD1D8227-4CEF-4C4D-9C11-FDD92EC20E16.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203727946_C76A8AE4-C8B7-4057-BE34-3D1BDB93BC9E.HEIC",
+      "sha256": "c15eacb081b8d9d8fad5bca7d871ecdc40f6f1547807fd73cbe61748da0f15c3",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203728266_63974D56-8363-46BC-BDF3-5DE9E1D51ADE.HEIC",
+      "sha256": "ec9701f1df8b254aa7c1c14cf97e4340709559abfd7466d27f02d0a705b137cb",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203728266_63974D56-8363-46BC-BDF3-5DE9E1D51ADE.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203729233_3461A4FA-CD1B-4D24-8FBC-7599120D3969.HEIC",
+      "sha256": "3eb90d3d9219fd66900fb421c34381191cef5d88ade64abedc3366f3ba714421",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203729233_3461A4FA-CD1B-4D24-8FBC-7599120D3969.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203729530_5F3C7B3E-1F93-4EF2-9669-81398848186F.HEIC",
+      "sha256": "18030bce0a5d19454f72ca40a6ed1b45b3382430d7ce59648ce209119a532b1c",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203729806_B13FF52D-04AB-42EB-B0A0-AA7CC9FC2279.HEIC",
+      "sha256": "2087cb9dc938ce890f387ad0e81b51d1ea3dac2c69f624170d38ac9dab51e647",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203730145_43E397DD-3B39-48D8-9EB7-9100C90F00EF.HEIC",
+      "sha256": "2dabe85e54b2cb99a818c03a5c58e555540eff365fae1d0165cbeced317c17e6",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203730145_43E397DD-3B39-48D8-9EB7-9100C90F00EF.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203730617_8D766875-1E6B-49A2-BE1A-53B151F912FB.HEIC",
+      "sha256": "44f591e56da2edc2975d3f326eefc9a31b68d9bde8b493d4a7e4075bae4767f8",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203730975_031ACF6F-8F44-4062-BA1F-F2E0546188DE.HEIC",
+      "sha256": "5df25ef7b8884d4a38a9a7be72ce16ee0af32b4568cef872c6f87158f5c6f547",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203730975_031ACF6F-8F44-4062-BA1F-F2E0546188DE.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203731321_9A041AFB-710E-48CC-BD32-029F727D5CF1.HEIC",
+      "sha256": "1b8005f887148a4b5ea7bfa34763d5e6da801e63bd361b6e70d7d11b74e708dd",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203732411_44D84184-C61B-4A71-8098-F308914D7771.HEIC",
+      "sha256": "f3409c372dd59576982bf30b27c0ae259fe7336cf353d8b473b13f21d7e5d4de",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203732411_44D84184-C61B-4A71-8098-F308914D7771.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203732758_05A5CA72-79AA-4963-A4DB-F0ED1E278099.HEIC",
+      "sha256": "41f5cd62391553115c8867da6d40cd923d03d2b3f5e4e232d57c13a9393ea96d",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203733118_881293C3-40CE-4967-8DF1-6FACF0469C29.HEIC",
+      "sha256": "ff4aecebffdbc7a187d25ac5e4a43bb0648fa44b1d95f3492ffafd7fe2a0d6cb",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203733475_A531658E-E9C5-49BF-A837-43416529F912.HEIC",
+      "sha256": "8df8007e6188fb5e497bf38e48396cb3ee9b05dfdc07a06174f3bc084a4fcc65",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203733475_A531658E-E9C5-49BF-A837-43416529F912.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203733806_1FD52B1D-A359-48AD-A08E-5BC5F3425108.HEIC",
+      "sha256": "e4014e75b0ffeedd19e4fc656364a27ea2dba3c1f5fcbe1802aad6d5ebedfa57",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203734152_608E2EA7-163A-41EB-9EF3-74F4713034BA.HEIC",
+      "sha256": "f59e72ea18a40fad81acf27aff9b6efeb11d3dda1ee2e54ede25a342576bd340",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203734507_ED799443-4F3F-43BE-8B65-04F6F3BFCCE6.HEIC",
+      "sha256": "d0ab2a3b5c5fd7c96363cea55a6ae32043c89fdaab2720a68db2c9c0b5b9c60d",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203734507_ED799443-4F3F-43BE-8B65-04F6F3BFCCE6.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203744198_5DD84ED4-46E4-4834-B0C6-6A49B9745CC4.HEIC",
+      "sha256": "69b8bb416b9c655edd1fc42a2893e4bc254e99be341ba7a9ee769aae2b1e6434",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203744198_5DD84ED4-46E4-4834-B0C6-6A49B9745CC4.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203744881_12D6E0F4-308D-4EA8-85D1-7984A86FC787.HEIC",
+      "sha256": "6bfd2287c52b0deb659533edf6d3a7f9b4597750729ed7a63b80db792b5a9bc1",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203745266_89FC8D86-74CE-4294-8CD7-17AC10123C67.HEIC",
+      "sha256": "e4cfa51a77da92f42ff3a1921361c6287612b2454e49f30e6e2b4f46e759640e",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203745266_89FC8D86-74CE-4294-8CD7-17AC10123C67.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203745636_62DEFE58-DC62-4A67-B400-D2E8B82ABC65.HEIC",
+      "sha256": "7931e3df9116882de66ce414acfd7ae9890def36d24115ff4d5eab0f6edfc2c4",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203745988_F94C190D-9C50-4952-9979-AC7A97EC1B06.HEIC",
+      "sha256": "0567f754404f4f2f9ae88b0b7476a222375be4c2e25f09ceb9a71582714884d0",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203746353_BF8E8774-3CD4-4BA9-A346-344A245FA2F0.HEIC",
+      "sha256": "933ed7d5fe34910e47da4cb431c929ed2dedb28487592e49f29406ea85cfd85f",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203746353_BF8E8774-3CD4-4BA9-A346-344A245FA2F0.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203746707_FAB47701-7BD8-4B47-A60E-C3C1C627F0CD.HEIC",
+      "sha256": "621f617f1a8b4e2ee582bc85a1a3d238064e2f04ef570d5e7969cf783260734e",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203747778_324050E5-D1D6-4513-80D7-42A052F4AA1A.HEIC",
+      "sha256": "6fae26ba0fe5677aeb6c87fcc977d1a36526343a9c8d9cea6ea3a403245fec4e",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203747778_324050E5-D1D6-4513-80D7-42A052F4AA1A.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203748119_DD677C6E-676A-40C2-9A0E-4D252B50EB19.HEIC",
+      "sha256": "6228994a8c317b566840543ff207a34502fc0a71ac577a3679b84577fd5b0131",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203748460_D44EBB73-2316-4EA9-9C65-AEFF95F4B2EC.HEIC",
+      "sha256": "ef01dd5a24c3bad1104fa2133e3f5e7fe707f59234aa2acf192faab0be0bb6f8",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203748808_D74B1DAA-2463-4C82-82F9-7CF28485DF25.HEIC",
+      "sha256": "4ce215634dfa15f1cba9437696eb93761b68a1a0c18eb882603f8acb0a6bda38",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203748808_D74B1DAA-2463-4C82-82F9-7CF28485DF25.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203749042_02FDBD90-D179-47A2-A1C6-723F87052B3A.HEIC",
+      "sha256": "75e896aaa28e33dbad8d956418b2b5663d468bb1df4802d89ce23ea293cb4e94",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203749352_A83CCD7D-244E-4827-BB1A-5D8083753B12.HEIC",
+      "sha256": "25fab63881f907c45e310468b2c9bf0b6edfba928043d61805afe4d9c198cffc",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203749939_CE1FDB0F-61B6-4EF2-A851-3816CDE51BA8.HEIC",
+      "sha256": "0f250022dc1af3bfeee56f7537dcad64269712359a2294f4a446ba8cd572de61",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203749939_CE1FDB0F-61B6-4EF2-A851-3816CDE51BA8.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203750807_68788D50-7BA0-4866-AA85-4A2DF2D3E600.HEIC",
+      "sha256": "28525a970531f1d3e56bb9387f7744635f2afaeec70b297cabb4009ad011b54e",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203750807_68788D50-7BA0-4866-AA85-4A2DF2D3E600.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203751100_98FF8BE2-C4B3-4F71-B7AE-059DDEB59BD2.HEIC",
+      "sha256": "105a1d3ffa2d8614fe2c03ab7a999b1b6112d8f63fa3241940101184e2026a36",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203751566_61D4761C-51CE-4242-A60A-64E45B2F0EA0.HEIC",
+      "sha256": "b63f3a61b63c504944a7c8c427c0292c5d157ea2b2b56f2e6594c74b83930227",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203752900_0E9F12AC-2755-4B97-8CDB-DC8DAF5B8384.HEIC",
+      "sha256": "dc6f7a2408d516b266704c0bd9d0585152e959bbe1694082144db9a8bbad33ae",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203752900_0E9F12AC-2755-4B97-8CDB-DC8DAF5B8384.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203753309_5595E1C5-636A-41B3-9958-E957E6F96532.HEIC",
+      "sha256": "cb679123b3163fd106b2a05adee6126818ed9f879dea91d97954b628a176ee6b",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203753838_FD1BB1E5-6CD2-43E9-B3E9-B91B7D70BB39.HEIC",
+      "sha256": "d2041050e95ec5aec6212453308de8cd24b346493c13e5aa3d6c6828e87cf666",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "needs_manual_label",
+      "image": "images/train/20260907_mybox_vehicle/P20260907_203753838_FD1BB1E5-6CD2-43E9-B3E9-B91B7D70BB39.jpg"
+    },
+    {
+      "source": "/home/sy/hl_fma/picturesandvideos/testvideo/MYBOX.zip::P20260907_203754198_080C22D1-7B4B-401C-905C-1429E144D622.HEIC",
+      "sha256": "579c55a10fdbd319cc37938e9c97c31f9bdfd743f8230820f3b3c71a633c2275",
+      "session": "20260907_mybox_vehicle",
+      "split": "train",
+      "status": "not_selected_interval_or_duplicate"
+    }
+  ]
+}

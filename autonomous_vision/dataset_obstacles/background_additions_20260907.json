@@ -1,0 +1,61 @@
+{
+  "policy": "Manually reviewed no visible child_dummy or vehicle_obstacle; existing train sessions retained; no videos extracted.",
+  "added": [
+    {
+      "id": 4,
+      "source": "dataset/detection/images/train/20260905_c_video_155018/frame_00000000.jpg",
+      "session": "20260905_c_video_155018",
+      "split": "train",
+      "status": "needs_manual_obstacle_presence_review",
+      "instruction": "Label any visible target; empty label only after visual confirmation."
+    },
+    {
+      "id": 5,
+      "source": "dataset/detection/images/train/20260905_c_video_155018/frame_00000090.jpg",
+      "session": "20260905_c_video_155018",
+      "split": "train",
+      "status": "needs_manual_obstacle_presence_review",
+      "instruction": "Label any visible target; empty label only after visual confirmation."
+    },
+    {
+      "id": 10,
+      "source": "dataset/detection/images/train/20260905_c_video_155200/frame_00000000.jpg",
+      "session": "20260905_c_video_155200",
+      "split": "train",
+      "status": "needs_manual_obstacle_presence_review",
+      "instruction": "Label any visible target; empty label only after visual confirmation."
+    },
+    {
+      "id": 11,
+      "source": "dataset/detection/images/train/20260905_c_video_155200/frame_00000060.jpg",
+      "session": "20260905_c_video_155200",
+      "split": "train",
+      "status": "needs_manual_obstacle_presence_review",
+      "instruction": "Label any visible target; empty label only after visual confirmation."
+    },
+    {
+      "id": 15,
+      "source": "dataset/detection/images/train/20260905_c_video_155655/frame_00002160.jpg",
+      "session": "20260905_c_video_155655",
+      "split": "train",
+      "status": "needs_manual_obstacle_presence_review",
+      "instruction": "Label any visible target; empty label only after visual confirmation."
+    }
+  ],
+  "excluded": {
+    "ambiguous": [
+      1,
+      2,
+      3,
+      6,
+      7,
+      8,
+      9,
+      13,
+      14
+    ],
+    "near_duplicate": [
+      12
+    ]
+  }
+}

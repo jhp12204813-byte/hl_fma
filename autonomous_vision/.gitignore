@@ -12,9 +12,11 @@ dataset_detection/**/*.cache
 dataset_sign_cls/
 runs/
 
-# Obstacle images/labels stay local; only code, reports, and the reviewed
-# candidate checkpoint are shared with the team.
-dataset_obstacles/
+# The reviewed positive obstacle dataset is versioned for team fine-tuning.
+# Keep generated Ultralytics caches and manual label-history backups local.
+dataset_obstacles/**/*.cache
+dataset_obstacles/label_history/
+dataset_obstacles/labels_clean/
 dataset_obstacles_childclean/
 dataset_obstacles_mybox2_review/
 

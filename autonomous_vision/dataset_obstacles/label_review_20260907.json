@@ -1,0 +1,286 @@
+{
+  "policy": "child_dummy includes visible body, hat, trolley and wheels; exclude separate adult. Original source dataset untouched.",
+  "basis": "Manual review of GT/source imagery, not fitting predictions or metric thresholds.",
+  "changes": [
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_photos/P20260905_152037278_93276DFF-3BE9-4A27-9818-3C40CB02BA9C.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_photos/P20260905_152037278_93276DFF-3BE9-4A27-9818-3C40CB02BA9C.jpg",
+      "before": "1 0.4789385004 0.3205938092 0.1272114575 0.0397978522\n1 0.4882055602 0.3168035376 0.1642796967 0.0726468730\n1 0.4915754002 0.3228048010 0.1760741365 0.0846493999\n1 0.4991575400 0.3076437145 0.2417860152 0.1389766267\n1 0.4852569503 0.3098547063 0.2207245156 0.1092861655\n",
+      "after": "1 0.4789385004 0.3205938092 0.1272114575 0.0397978522\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_photos/P20260905_152743213_19C8D57D-3657-49D2-AC47-329C67067DF6.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_photos/P20260905_152743213_19C8D57D-3657-49D2-AC47-329C67067DF6.jpg",
+      "before": "0 0.6433447099 0.3227767115 0.0921501706 0.0799744082\n0 0.6450511945 0.3237364044 0.0938566553 0.0806142035\n0 0.6497440273 0.3234165067 0.1032423208 0.0876519514\n0 0.6493174061 0.3326935381 0.0989761092 0.0652591171\n0 0.6467576792 0.3272552783 0.1245733788 0.1081253999\n",
+      "after": "0 0.6467576792 0.3272552783 0.1245733788 0.1081253999\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000000.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000000.jpg",
+      "before": "0 0.0802047782 0.3982725528 0.1296928328 0.0614203455\n0 0.0900170648 0.4006717850 0.1168941980 0.0652591171\n0 0.0823378840 0.4011516315 0.1510238908 0.0690978887\n0 0.0934300341 0.4006717850 0.1373720137 0.0700575816\n",
+      "after": "0 0.0844709898 0.4006717850 0.1552901023 0.0700575816\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000030.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000030.jpg",
+      "before": "0 0.3139931741 0.4285028791 0.0989761092 0.0642994242\n0 0.3306313993 0.4292226488 0.0998293515 0.0666986564\n0 0.3280716724 0.4256238004 0.0964163823 0.0671785029\n0 0.3259385666 0.4256238004 0.1262798635 0.0700575816\n",
+      "after": "0 0.3259385666 0.4265834933 0.1262798635 0.0719769674\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000060.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000060.jpg",
+      "before": "0 0.4219283276 0.4364203455 0.1134812287 0.0666986564\n0 0.4300341297 0.4385796545 0.1126279863 0.0671785029\n0 0.4419795222 0.4416986564 0.1228668942 0.0801343570\n",
+      "after": "0 0.4343003413 0.4416986564 0.1382252561 0.0801343570\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000090.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000090.jpg",
+      "before": "0 0.5477815700 0.4541746641 0.1092150171 0.0599808061\n0 0.5533276451 0.4493761996 0.1441979522 0.0628598848\n0 0.5546075085 0.4481765835 0.1501706485 0.0681381958\n",
+      "after": "0 0.5546075085 0.4491362764 0.1501706485 0.0700575816\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000120.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000120.jpg",
+      "before": "0 0.6335324232 0.4464971209 0.1322525597 0.0724568138\n0 0.6403583618 0.4404990403 0.1510238908 0.0777351248\n0 0.6625426621 0.4457773512 0.1390784983 0.0796545106\n",
+      "after": "0 0.6484641638 0.4436180422 0.1672354948 0.0839731286\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000150.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000150.jpg",
+      "before": "0 0.6595563140 0.4467370441 0.1296928328 0.0719769674\n0 0.6655290102 0.4512955854 0.1450511945 0.0753358925\n0 0.6710750853 0.4570537428 0.1527303754 0.0734165067\n",
+      "after": "0 0.6702218430 0.4522552783 0.1544368601 0.0830134358\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000180.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000180.jpg",
+      "before": "0 0.6697952218 0.4491362764 0.1331058020 0.0719769674\n0 0.6744880546 0.4572936660 0.1186006826 0.0700575816\n0 0.6949658703 0.4673704415 0.1168941980 0.0719769674\n",
+      "after": "0 0.6783276450 0.4582533589 0.1501706485 0.0902111325\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000210.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000210.jpg",
+      "before": "0 0.6945392491 0.4558541267 0.1365187713 0.0710172745\n0 0.6851535836 0.4544145873 0.1672354949 0.1190019194\n",
+      "after": "0 0.6851535836 0.4544145873 0.1672354949 0.1190019194\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000240.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000240.jpg",
+      "before": "0 0.6958191126 0.4668905950 0.1663822526 0.0815738964\n0 0.6988054608 0.4700095969 0.1655290102 0.1118042226\n",
+      "after": "0 0.6970989761 0.4700095969 0.1689419796 0.1118042226\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000270.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000270.jpg",
+      "before": "0 0.6924061433 0.4654510557 0.1288395904 0.0796545106\n0 0.7128839590 0.4786468330 0.1766211604 0.1050863724\n",
+      "after": "0 0.7128839590 0.4784069098 0.1766211604 0.1055662188\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000300.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000300.jpg",
+      "before": "0 0.7005119454 0.4587332054 0.1194539249 0.0729366603\n0 0.7359215017 0.4776871401 0.1749146758 0.1050863724\n",
+      "after": "0 0.7320819113 0.4762476008 0.1825938567 0.1079654510\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000330.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000330.jpg",
+      "before": "0 0.7521331058 0.4630518234 0.1629692833 0.0662188100\n0 0.7666382253 0.4820057582 0.1800341297 0.1146833013\n",
+      "after": "0 0.7636518772 0.4820057582 0.1860068260 0.1146833013\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000510.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000510.jpg",
+      "before": "0 0.7901023891 0.5542226488 0.3617747440 0.2351247601\n0 0.7982081911 0.5674184261 0.3575085324 0.2356046065\n",
+      "after": "0 0.7930887372 0.5609404990 0.3677474402 0.2485604606\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000540.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000540.jpg",
+      "before": "0 0.7751706485 0.5623800384 0.4274744027 0.2792706334\n0 0.7794368601 0.5664587332 0.3984641638 0.3190978887\n",
+      "after": "0 0.7751706485 0.5664587332 0.4274744027 0.3190978887\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000570.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000570.jpg",
+      "before": "0 0.7316552901 0.5674184261 0.4906143345 0.3450095969\n0 0.7184300341 0.5681381958 0.5238907850 0.3819577735\n0 0.7261092150 0.5772552783 0.5051194539 0.3493282150\n",
+      "after": "0 0.7184300341 0.5681381958 0.5238907850 0.3819577735\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000630.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000630.jpg",
+      "before": "0 0.7124573379 0.5986084453 0.5750853242 0.4774472169\n",
+      "after": "0 0.7111111111 0.5953125000 0.5777777778 0.8093750000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000660.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000660.jpg",
+      "before": "0 0.7017918089 0.6031669866 0.5964163822 0.5000000000\n",
+      "after": "0 0.6861111111 0.6171875000 0.6277777778 0.7656250000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000690.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000690.jpg",
+      "before": "0 0.6079351536 0.6470729367 0.7841296928 0.5820537428\n0 0.5934300341 0.3157389635 0.8131399317 0.5758157390\n",
+      "after": "0 0.5944444444 0.5078125000 0.8111111111 0.9843750000\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS. Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000720.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000720.jpg",
+      "before": "0 0.5878839590 0.3003838772 0.8242320819 0.5921305182\n0 0.1644981413 0.3823221757 0.0130111524 0.0156903766\n",
+      "after": "0 0.5833333333 0.5000000000 0.8333333333 1.0000000000\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS. Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000750.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000750.jpg",
+      "before": "0 0.8110068259 0.5945297505 0.3779863481 0.5921305182\n0 0.7425650558 0.5972803347 0.5148698885 0.8054393305\n",
+      "after": "0 0.7425650558 0.5972803347 0.5148698885 0.8054393305\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000780.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000780.jpg",
+      "before": "0 0.8929180887 0.6166026871 0.2141638225 0.5422264875\n0 0.8113382900 0.6448744770 0.3773234200 0.7102510460\n",
+      "after": "0 0.8113382900 0.6448744770 0.3773234200 0.7102510460\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000840.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000840.jpg",
+      "before": "0 0.6700743494 0.5674686192 0.6598513011 0.8650627615\n0 0.7537174721 0.5747907950 0.4925650558 0.7897489540\n",
+      "after": "0 0.5805555556 0.5765625000 0.8388888889 0.8468750000\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS. Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000870.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000870.jpg",
+      "before": "0 0.5176579926 0.5998953975 0.7825278810 0.8002092050\n0 0.5780669145 0.6145397490 0.4869888476 0.6997907950\n0 0.6328996283 0.6490585774 0.4814126394 0.7018828452\n",
+      "after": "0 0.4666666667 0.6187500000 0.9333333333 0.7625000000\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS. Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000900.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000900.jpg",
+      "before": "0 0.3243494424 0.6642259414 0.5669144981 0.6715481172\n0 0.3001858736 0.6914225941 0.4739776952 0.6171548117\n",
+      "after": "0 0.2277777778 0.6562500000 0.4555555556 0.6875000000\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS. Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000930.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000930.jpg",
+      "before": "0 0.3875464684 0.4827405858 0.7750929368 0.9654811715\n0 0.4265799257 0.4722803347 0.6375464684 0.9445606694\n",
+      "after": "0 0.3972222222 0.5000000000 0.7944444444 1.0000000000\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS. Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000960.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000960.jpg",
+      "before": "0 0.2146840149 0.4508368201 0.4293680297 0.9016736402\n0 0.2732342007 0.4325313808 0.5464684014 0.8650627615\n",
+      "after": "0 0.2833333333 0.5000000000 0.5666666667 1.0000000000\n",
+      "reason": "Visually confirmed single object: consolidate multiple same-object GT boxes; not prediction-based NMS. Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00000990.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00000990.jpg",
+      "before": "0 0.5817843866 0.3357740586 0.4684014870 0.6715481172\n",
+      "after": "0 0.5666666667 0.5000000000 0.8666666667 1.0000000000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00001020.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00001020.jpg",
+      "before": "0 0.7165427509 0.4738493724 0.5669144981 0.9476987448\n",
+      "after": "0 0.7222222222 0.4796875000 0.5555555556 0.9593750000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00001050.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00001050.jpg",
+      "before": "0 0.3680297398 0.4874476987 0.7360594796 0.9748953974\n",
+      "after": "0 0.4638888889 0.5000000000 0.9277777778 1.0000000000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00001080.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00001080.jpg",
+      "before": "0 0.2676579926 0.4644351464 0.5353159851 0.9288702929\n",
+      "after": "0 0.2833333333 0.5000000000 0.5666666667 1.0000000000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00001110.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00001110.jpg",
+      "before": "0 0.3643122677 0.3566945607 0.4460966543 0.7133891213\n",
+      "after": "0 0.4083333333 0.4015625000 0.8166666667 0.8031250000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00001140.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00001140.jpg",
+      "before": "0 0.6431226766 0.3200836820 0.4609665428 0.6401673640\n",
+      "after": "0 0.4666666667 0.3437500000 0.8000000000 0.6062500000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00001170.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00001170.jpg",
+      "before": "0 0.5102230483 0.3634937238 0.4591078067 0.4320083682\n",
+      "after": "0 0.4638888889 0.3687500000 0.5722222222 0.4625000000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/train/20260905_b_video_152846/frame_00001200.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/train/20260905_b_video_152846/frame_00001200.jpg",
+      "before": "0 0.4758364312 0.3561715481 0.4349442379 0.3399581590\n",
+      "after": "0 0.4583333333 0.3640625000 0.4277777778 0.3718750000\n",
+      "reason": " Manual visible silhouette adjustment to include hat and full visible trolley; coordinates reviewed on source-image contact sheet."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/val/20260906_d_video_141652/frame_00001230.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/val/20260906_d_video_141652/frame_00001230.jpg",
+      "before": "0 0.2648698885 0.2227722772 0.1059479554 0.3861386139\n",
+      "after": "0 0.2986562887 0.2227722772 0.1735207559 0.3861386139\n",
+      "reason": "Include visible right end of trolley; keep other GT edges unchanged."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/val/20260906_d_video_141652/frame_00001500.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/val/20260906_d_video_141652/frame_00001500.jpg",
+      "before": "0 0.4358736059 0.3811881188 0.0910780669 0.3135313531\n",
+      "after": "0 0.4282063197 0.3811881188 0.1064126394 0.3135313531\n",
+      "reason": "Include visible left end of trolley; keep other GT edges unchanged."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/val/20260906_d_video_141652/frame_00001530.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/val/20260906_d_video_141652/frame_00001530.jpg",
+      "before": "0 0.3568773234 0.3828382838 0.0966542751 0.2904290429\n",
+      "after": "0 0.3453105638 0.3828382838 0.1197877943 0.2904290429\n",
+      "reason": "Include visible left end of trolley; keep other GT edges unchanged."
+    },
+    {
+      "label": "autonomous_vision/dataset_obstacles/labels/val/20260906_d_video_141652/frame_00001560.txt",
+      "image": "autonomous_vision/dataset_obstacles/images/val/20260906_d_video_141652/frame_00001560.jpg",
+      "before": "0 0.3410780669 0.3960396040 0.0724907063 0.2970297030\n",
+      "after": "0 0.3313700434 0.3960396040 0.0919067534 0.2970297030\n",
+      "reason": "Include visible left end of trolley; keep other GT edges unchanged."
+    }
+  ]
+}
