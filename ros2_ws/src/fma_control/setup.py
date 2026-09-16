@@ -28,5 +28,6 @@ setup(
         'lane_follow = fma_control.lane_follow_node:main',
         'keyboard_teleop = fma_control.keyboard_teleop_node:main',
         'command_arbiter = fma_control.command_arbiter_node:main',
+        'ramp_controller = fma_control.ramp_controller_node:main',
     ]},
 )
