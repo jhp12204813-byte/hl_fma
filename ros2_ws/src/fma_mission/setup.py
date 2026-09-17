@@ -18,8 +18,12 @@ setup(
     description='Mission management and competition state machines for the FMA autonomous vehicle.',
     license='TODO',
     tests_require=['pytest'],
-    entry_points={'console_scripts': [
-        'mission_test_runner = fma_mission.mission_test_runner_node:main',
-        'mission_manager = fma_mission.mission_manager_node:main',
-    ]},
+    entry_points={
+        'console_scripts': [
+            'mission_test_runner = fma_mission.mission_test_runner_node:main',
+            'mission_manager = fma_mission.mission_manager_node:main',
+            'dummy_behavior = fma_mission.dummy_behavior_node:main',
+        'dummy_maneuver = fma_mission.dummy_maneuver_node:main',
+        ],
+    },
 )

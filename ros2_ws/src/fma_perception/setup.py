@@ -17,5 +17,9 @@ setup(
     description='Perception components for the FMA autonomous vehicle.',
     license='TODO',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []},
+    entry_points={
+        'console_scripts': [
+            'obstacle_detection = fma_perception.obstacle_detection_node:main',
+        ],
+    },
 )

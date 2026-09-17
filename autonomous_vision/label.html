@@ -10,7 +10,7 @@
 <main><section>
 <div><select id="split"><option value="train">train</option><option value="val">val</option><option value="test">test</option></select>
 <button id="prev">← 이전</button><button id="next">다음 →</button><button id="pending">미완료로 이동</button>
-<select id="zoom" aria-label="이미지 확대"><option value="1">화면 맞춤</option><option value="2">2배 확대</option><option value="4">4배 확대</option></select><span id="progress"></span></div>
+<select id="zoom" aria-label="이미지 확대"><option value="0.5">0.5배 축소</option><option value="0.75">0.75배 축소</option><option value="1" selected>화면 맞춤</option><option value="2">2배 확대</option><option value="4">4배 확대</option></select><span id="progress"></span></div>
 <div id="filename"></div><div id="viewport"><canvas id="canvas"></canvas></div><div id="message" role="status"></div>
 </section><aside><div id="classes"></div>
 <p class="hint"><span id="keyRange">0 / 1 / 2</span>: 클래스 선택<br>기존 박스 변경: 아래 목록에서 선택 후 클래스 클릭<br>잘못 그린 박스: 선택 삭제 후 다시 그리기<br>0번은 일반 차량 신호등의 전체 하우징입니다.<br>1번은 신호차 상단 패널이며, 꺼진 패널도 각각 표시합니다.<br>2번은 신호차 하단의 큰 문자 전광판입니다.<br>신호차 차체 자체에는 박스를 그리지 않습니다.</p>

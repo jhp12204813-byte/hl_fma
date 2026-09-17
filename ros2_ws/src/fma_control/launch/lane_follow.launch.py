@@ -2,8 +2,7 @@
 from launch import LaunchDescription
 import math
 
-from launch.actions import DeclareLaunchArgument, GroupAction, OpaqueFunction
-from launch.conditions import IfCondition
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -25,7 +24,6 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('enable_drive', default_value='false'),
         DeclareLaunchArgument('device', default_value='/dev/video0'),
-        DeclareLaunchArgument('port', default_value='/dev/serial/by-id/usb-STMicroelectronics_STM32_STLink_0671FF505055877267173020-if02'),
         DeclareLaunchArgument('lane_min_width_m', default_value='3.50',
                              description='Minimum lane width in meters; override is DRY-RUN only'),
         OpaqueFunction(function=validate_width),
@@ -34,13 +32,4 @@ def generate_launch_description():
             'device': LaunchConfiguration('device'),
             'lane_min_width_m': ParameterValue(LaunchConfiguration('lane_min_width_m'), value_type=float),
         }]),
-        GroupAction(condition=IfCondition(enabled), actions=[
-            Node(package='fma_control', executable='command_arbiter', parameters=[{
-                'allow_lane_pwm': True, 'mission_topic': '/lane_follow/unused_mission',
-            }]),
-            Node(package='fma_vehicle', executable='vehicle_controller'),
-            Node(package='fma_vehicle', executable='stm32_bridge_node', parameters=[{
-                'port': LaunchConfiguration('port'),
-            }]),
-        ]),
     ])
