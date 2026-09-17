@@ -41,11 +41,12 @@ class SignalCarDetectionNode(Node):
         self.declare_parameter('classifier_imgsz', 224)
         self.declare_parameter('device', '')
 
-        # Signal-board screen slots used for the actual two driving lanes.
-        # Initial assumption:
-        # SLOT 1 -> LEFT lane
-        # SLOT 3 -> RIGHT lane
+        # Three signal-board slots.
+        # SLOT 1 -> LEFT
+        # SLOT 2 -> CENTER
+        # SLOT 3 -> RIGHT
         self.declare_parameter('left_slot', 1)
+        self.declare_parameter('center_slot', 2)
         self.declare_parameter('right_slot', 3)
 
         repo_root = Path(
@@ -118,19 +119,29 @@ class SignalCarDetectionNode(Node):
         self.left_slot = int(
             self.get_parameter('left_slot').value
         )
+        self.center_slot = int(
+            self.get_parameter('center_slot').value
+        )
         self.right_slot = int(
             self.get_parameter('right_slot').value
         )
 
-        if self.left_slot not in (1, 2, 3):
-            raise ValueError('left_slot must be 1, 2, or 3')
+        slots = (
+            self.left_slot,
+            self.center_slot,
+            self.right_slot,
+        )
 
-        if self.right_slot not in (1, 2, 3):
-            raise ValueError('right_slot must be 1, 2, or 3')
-
-        if self.left_slot == self.right_slot:
+        if any(slot not in (1, 2, 3) for slot in slots):
             raise ValueError(
-                'left_slot and right_slot must be different'
+                'left_slot, center_slot and right_slot '
+                'must be 1, 2, or 3'
+            )
+
+        if len(set(slots)) != 3:
+            raise ValueError(
+                'left_slot, center_slot and right_slot '
+                'must all be different'
             )
 
         self.bridge = CvBridge()
@@ -156,6 +167,7 @@ class SignalCarDetectionNode(Node):
             'Signal-car perception ready: '
             f'color={color_topic}, '
             f'LEFT<-SLOT{self.left_slot}, '
+            f'CENTER<-SLOT{self.center_slot}, '
             f'RIGHT<-SLOT{self.right_slot}'
         )
 
@@ -266,6 +278,11 @@ class SignalCarDetectionNode(Node):
                 self.left_slot,
             )
 
+            center_state, center_conf, center_raw = self.slot_result(
+                states,
+                self.center_slot,
+            )
+
             right_state, right_conf, right_raw = self.slot_result(
                 states,
                 self.right_slot,
@@ -273,17 +290,23 @@ class SignalCarDetectionNode(Node):
 
             output = LaneSignal()
             output.header = msg.header
+
             output.left_state = left_state
+            output.center_state = center_state
             output.right_state = right_state
+
             output.left_confidence = left_conf
+            output.center_confidence = center_conf
             output.right_confidence = right_conf
 
             self.publisher.publish(output)
 
             snapshot = (
                 left_state,
+                center_state,
                 right_state,
                 left_raw,
+                center_raw,
                 right_raw,
             )
 
@@ -293,6 +316,7 @@ class SignalCarDetectionNode(Node):
                 self.get_logger().info(
                     'SIGNAL '
                     f'LEFT={left_raw}({left_conf:.2f}) '
+                    f'CENTER={center_raw}({center_conf:.2f}) '
                     f'RIGHT={right_raw}({right_conf:.2f})'
                 )
 

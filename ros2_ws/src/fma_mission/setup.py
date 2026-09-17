@@ -37,5 +37,7 @@ setup(
         'mission_safety = fma_mission.mission_safety_node:main',
         'dummy_behavior = fma_mission.dummy_behavior_node:main',
         'dummy_maneuver = fma_mission.dummy_maneuver_node:main',
+        'signal_car_behavior = fma_mission.signal_car_behavior_node:main',
+        'lane_change_maneuver = fma_mission.lane_change_maneuver_node:main',
     ]},
 )

@@ -709,6 +709,13 @@ class DenseRouteProgress:
         return changed or boundary_changed
 
     def complete(self, mission, completed):
-        # Mission completion handling will be enabled when dense
-        # mission anchors are added.
+        if (
+            self.state == 'SIGNAL_CAR'
+            and completed
+            and mission == MissionState.SIGNAL_CAR
+        ):
+            self.state = 'LANE_CHANGE'
+            self.phase = None
+            return True
+
         return False
