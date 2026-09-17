@@ -12,7 +12,7 @@ from rclpy.signals import SignalHandlerOptions
 from fma_control.lane_follow_node import LaneFollowNode, calculate_command, process_lane
 from fma_perception.stop_line_detector import StopLineConfig, StopLineDetector
 from fma_perception.stop_line_tracker import StopLineTracker
-from fma_interfaces.msg import DriveCommand
+from fma_interfaces.msg import DriveCommand, LaneBoundaryState
 
 
 def pair_perception_diagnostic(lane, bev, raw_mask):
@@ -107,6 +107,7 @@ class LaneStopTestNode(LaneFollowNode):
         self.obstacle_stopped = threading.Event()
         self.competition_tracking = competition_tracking
         self.active_lane_pwm = 0
+        self.lane_boundary_publisher = None
 
         # Read-only competition BEV visualization.
         # Never opens the camera a second time.
@@ -126,6 +127,13 @@ class LaneStopTestNode(LaneFollowNode):
         self.last_valid_steering = 0.0
 
         super().__init__(field_stop_test=True, competition_tracking=competition_tracking)
+
+        if self.competition_tracking:
+            self.lane_boundary_publisher = self.create_publisher(
+                LaneBoundaryState,
+                '/perception/lane_boundary',
+                1,
+            )
 
         if self.competition_tracking and self.debug_bev:
             self.debug_bev_timer = self.create_timer(0.05, self._debug_bev_tick)
@@ -148,6 +156,7 @@ class LaneStopTestNode(LaneFollowNode):
             result, lane = calculate_competition_command(tracking, self.competition_tracker,
                                                         self.follow_config, self.options)
             result = self.pair_return_blend.apply(result, stamp)
+            self._publish_lane_boundary(tracking, result)
             self._update_debug_bev(frame, mask, tracking, result, lane, stamp)
             reject_counts = {}
             for candidate in tracking.get('candidates', []):
@@ -186,6 +195,116 @@ class LaneStopTestNode(LaneFollowNode):
             # One latest-frame mailbox: no detector backlog or second camera.
             self.stop_pending = (stamp, white_bev, lane)
         return result, count
+
+    def _publish_lane_boundary(self, tracking, result):
+        publisher = self.lane_boundary_publisher
+        if publisher is None:
+            return
+
+        msg = LaneBoundaryState()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'base_link'
+
+        def read_boundary(boundary):
+            if not boundary or boundary.get('reject_reason') is not None:
+                return None, 0.0
+
+            coeff = boundary.get('coefficients')
+            y_min = boundary.get('y_min_m')
+            y_max = boundary.get('y_max_m')
+            score = boundary.get('score')
+
+            if None in (coeff, y_min, y_max, score):
+                return None, 0.0
+
+            y = min(float(y_max), max(float(y_min), 2.0))
+            x = float(np.polyval(coeff, y))
+
+            if not math.isfinite(x):
+                return None, 0.0
+
+            return x, float(score)
+
+        left_x, left_conf = read_boundary(tracking.get('left'))
+        right_x, right_conf = read_boundary(tracking.get('right'))
+
+        msg.left_valid = left_x is not None
+        msg.left_x_m = left_x if left_x is not None else float('nan')
+        msg.left_confidence = left_conf
+
+        msg.right_valid = right_x is not None
+        msg.right_x_m = right_x if right_x is not None else float('nan')
+        msg.right_confidence = right_conf
+
+        selected = tracking.get('selected_lane_width_m')
+
+        msg.selected_lane_width_valid = bool(
+            tracking.get('valid')
+            and tracking.get('source') == 'PAIR_TRACK'
+            and selected is not None
+            and math.isfinite(float(selected))
+        )
+
+        msg.selected_lane_width_m = (
+            float(selected)
+            if msg.selected_lane_width_valid
+            else float('nan')
+        )
+
+        expected = self.competition_tracker.expected_lane_width_m
+
+        msg.expected_lane_width_valid = bool(
+            expected is not None
+            and math.isfinite(float(expected))
+        )
+
+        msg.expected_lane_width_m = (
+            float(expected)
+            if msg.expected_lane_width_valid
+            else float('nan')
+        )
+
+        lateral = result.get('lateral_error_m')
+        heading_deg = result.get('heading_error_deg')
+
+        msg.center_valid = bool(
+            result.get('valid')
+            and lateral is not None
+            and heading_deg is not None
+            and math.isfinite(float(lateral))
+            and math.isfinite(float(heading_deg))
+        )
+
+        if msg.center_valid:
+            msg.center_lateral_error_m = float(lateral)
+            msg.center_heading_error_rad = math.radians(
+                float(heading_deg)
+            )
+        else:
+            msg.center_lateral_error_m = float('nan')
+            msg.center_heading_error_rad = float('nan')
+
+        confidence = tracking.get('confidence')
+
+        msg.tracking_confidence = (
+            float(confidence)
+            if confidence is not None
+            and math.isfinite(float(confidence))
+            else 0.0
+        )
+
+        msg.tracking_source = str(
+            tracking.get('source', 'INVALID')
+        )
+
+        msg.control_source = str(
+            result.get(
+                'motion_control_source',
+                tracking.get('source', 'INVALID'),
+            )
+        )
+
+        publisher.publish(msg)
 
     def _update_debug_bev(self, frame, mask, tracking, result, lane, stamp):
         if not self.debug_bev:
