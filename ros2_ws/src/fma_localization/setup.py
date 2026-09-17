@@ -17,5 +17,9 @@ setup(
     description='Odometry and GPS waypoint management for the FMA autonomous vehicle.',
     license='TODO',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []},
+    entry_points={'console_scripts': [
+        'f9p_front = fma_localization.f9p_front_node:main',
+        'gps_controller = fma_localization.gps_controller_node:main',
+        'dense_gps_controller = fma_localization.dense_gps_controller_node:main',
+    ]},
 )

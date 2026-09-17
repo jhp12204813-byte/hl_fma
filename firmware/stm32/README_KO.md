@@ -220,3 +220,29 @@ REP-103 양의 각도=LEFT, 음의 각도=RIGHT이며 각 구간은 선형 보�
 emergency·timeout은 기존 fail-safe STOP을 유지한다. 명시적으로 calibration을
 끄면 중앙 허용 오차(0.001 rad)를 벗어난 nonzero angle은 계속 STOP 처리한다.
 이 각도 설정은 ROS 변환 계층에만 적용되며 STM32 firmware 변경은 없다.
+
+
+## Manual traction PWM protocol
+
+`Vddd` (대소문자 허용)는 정확히 세 자리 percent 000..100을 받는다.
+기존 W/S/X, A/D/C/H/Q, P telemetry, Tdddd와 명령 문자가 충돌하지 않는다.
+예: V005=40, V010=80, V015=120, V020=160, V100=800 timer compare.
+PWM timer ARR=799, 주기=800이며 STEERING_PWM=520은 그대로다.
+Boot 및 명시적 X/space/Q 후 기존 W/S 기본 duty는 15%다.
+V는 payload를 임시 수집하고 완전한 정상 값만 duty에 적용한다.
+STOP에서는 V만으로 구동하지 않으며 정상 V 이후 W/S가 해당 duty로 구동한다.
+이미 구동 중이면 방향을 유지한 채 duty만 갱신한다. V000은 traction 출력 0이다.
+Bridge는 기본 5 Hz drive refresh마다 Vddd → W/S를 각각 최소 20 ms 간격으로
+전송한다. 같은 방향/duty refresh는 traction 출력을 중단하지 않는다.
+
+명시적 PARSER_PWM 상태에서 malformed/range 오류/50 ms incomplete timeout은
+전체 STOP이다. UART error/overflow도 전체 STOP이며, 남은 W/S가 우발적으로
+구동하지 않도록 정상 V 또는 명시적 X/space/Q 전까지 traction 재개를 차단한다.
+X는 partial T/V도 즉시 선점해 STOP하고 기본 15% 설정으로 복귀한다.
+Orphan digits는 무시한다. 정상 V는 이후 W/S를 다시 허용한다.
+
+정지 조향은 X → Tdddd 순서로 가능하며 traction은 STOP/출력 0을 유지한다.
+X는 조향도 정지시키므로 bridge는 STOP refresh 뒤 유효한 T target을 재전송한다.
+Emergency/invalid/stale 입력에는 T를 보내지 않는다.
+새 bridge 사용 전 이 protocol을 지원하는 firmware가 필요하다.
+Host 검증: `python3 firmware/stm32/tools/test_command_parser.py` (저장소 root).

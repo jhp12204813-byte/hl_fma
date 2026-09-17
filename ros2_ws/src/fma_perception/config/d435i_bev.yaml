@@ -1,0 +1,52 @@
+lane_detector:
+  ros__parameters:
+    pipeline: bev
+    # Experimental image ROI. These are NOT metric calibration values.
+    roi_top_ratio: 0.42
+    lookahead_ratio: 0.65
+    roi_bottom_ratio: 1.0
+    roi_left_ratio: 0.0
+    roi_right_ratio: 1.0
+    # Keep HSV thresholds configurable; do not finalize from phone footage.
+    yellow_h_min: 15
+    yellow_h_max: 40
+    yellow_s_min: 75
+    yellow_v_min: 90
+    white_s_max: 65
+    white_v_min: 170
+    morph_kernel_size: 3
+    bev_lane_colors: yellow
+    bev_width: 640
+    bev_height: 480
+    bev_image_width: 640
+    bev_image_height: 480
+    bev_undistort: true
+    # UNSET: enter measured points in UNDISTORTED image, normalized TL/TR/BR/BL.
+    bev_source_points: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+    bev_destination_points: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+    bev_geometry_calibrated: false
+    bev_meters_per_pixel_x: 0.0
+    bev_meters_per_pixel_y: 0.0
+    bev_vehicle_x_px: -1.0
+    bev_vehicle_y_px: -1.0
+    bev_lookahead_ratio: 0.65
+    bev_windows: 12
+    bev_margin_ratio: 0.08
+    bev_max_marking_width_ratio: 0.055
+    bev_min_marking_width_ratio: 0.006
+    bev_min_support_ratio: 0.6
+    bev_max_gap_ratio: 0.18
+    bev_residual_ratio: 0.012
+    bev_min_inlier_ratio: 0.7
+    bev_lane_width_min_ratio: 0.2
+    bev_lane_width_max_ratio: 0.85
+    bev_lane_width_variation_ratio: 0.2
+    bev_max_tangent_difference: 0.35
+    bev_temporal_alpha: 0.4
+    bev_max_temporal_shift_ratio: 0.08
+    bev_max_frame_gap_s: 0.3
+    bev_min_confirm_frames: 3
+    # Legacy Hough calibration also remains unset.
+    lane_width_m: 0.0
+    meters_per_pixel_y: 0.0
+    single_lane_width_px: 0.0

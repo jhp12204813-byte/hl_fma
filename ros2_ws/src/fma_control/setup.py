@@ -26,6 +26,8 @@ setup(
         'competition_lane = fma_control.lane_stop_test_node:competition_main',
         'lane_stop_test = fma_control.lane_stop_test_node:main',
         'lane_follow = fma_control.lane_follow_node:main',
+        'lane_controller = fma_control.lane_controller_node:main',
+        'lane_guard = fma_control.lane_guard_node:main',
         'keyboard_teleop = fma_control.keyboard_teleop_node:main',
         'command_arbiter = fma_control.command_arbiter_node:main',
         'ramp_controller = fma_control.ramp_controller_node:main',

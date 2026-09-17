@@ -1,0 +1,6 @@
+<library path="c920_recorder">
+ <class name="c920_recorder.plugin.RecorderPlugin" type="c920_recorder.plugin.RecorderPlugin" base_class_type="rqt_gui_py::Plugin">
+  <description>Independent C920 RGB recorder</description>
+  <qtgui><group><label>Robot Tools</label></group><label>C920 Recorder</label></qtgui>
+ </class>
+</library>

@@ -1,0 +1,124 @@
+site: test_cheong
+profile: school_test
+description: 학교 GPS waypoint 주행 테스트 - WP4부터 시작
+waypoints:
+- number: 4
+  id: SCHOOL_ROUTE_004
+  name: 청2-2
+  latitude: 37.54256795
+  longitude: 127.07661551
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
+- number: 5
+  id: SCHOOL_ROUTE_005
+  name: 청2-3
+  latitude: 37.54264813
+  longitude: 127.07665277
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
+- number: 6
+  id: SCHOOL_ROUTE_006
+  name: 청2-4
+  latitude: 37.54275682
+  longitude: 127.07671692
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
+- number: 7
+  id: SCHOOL_ROUTE_007
+  name: 청2-5
+  latitude: 37.5428095
+  longitude: 127.07675625
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
+- number: 8
+  id: SCHOOL_ROUTE_008
+  name: 청2-6
+  latitude: 37.54281135
+  longitude: 127.07680746
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
+- number: 9
+  id: SCHOOL_ROUTE_009
+  name: 청3-1
+  latitude: 37.54279058
+  longitude: 127.07683417
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
+- number: 10
+  id: SCHOOL_ROUTE_010
+  name: 청3-2
+  latitude: 37.54275237
+  longitude: 127.07685197
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
+- number: 11
+  id: SCHOOL_ROUTE_011
+  name: 청3-3
+  latitude: 37.54267744
+  longitude: 127.07689645
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
+- number: 12
+  id: SCHOOL_ROUTE_012
+  name: 청3-4
+  latitude: 37.54259138
+  longitude: 127.076996575
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
+- number: 13
+  id: SCHOOL_ROUTE_013
+  name: 청3-5
+  latitude: 37.54252535
+  longitude: 127.07704038
+  activation_radius_m: 3.0
+  role: 학교 GPS 주행 테스트
+  waypoint_type: route
+  mission: null
+  recommended_control_mode: GPS
+  hard_point: true
+  phase: null
