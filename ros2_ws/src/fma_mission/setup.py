@@ -19,6 +19,7 @@ setup(
         ('share/' + package_name + '/launch', [
             'launch/mission.launch.py',
             'launch/school_dense.launch.py',
+            'launch/competition_dense.launch.py',
         ]),
     ],
     install_requires=['setuptools'],
