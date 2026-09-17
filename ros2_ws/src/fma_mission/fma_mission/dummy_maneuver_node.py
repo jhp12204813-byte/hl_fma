@@ -294,8 +294,8 @@ class DummyManeuverNode(Node):
         msg.emergency_stop = False
 
         # STOP does not require raw mission PWM permission.
-        msg.pwm_control = False
-        msg.drive_pwm = 0
+        msg.use_pwm_override = False
+        msg.drive_pwm_percent = 0
 
         self.command_pub.publish(msg)
 
@@ -307,8 +307,10 @@ class DummyManeuverNode(Node):
         msg.steering_angle_rad = float(steering_rad)
         msg.emergency_stop = False
 
-        msg.pwm_control = True
-        msg.drive_pwm = int(drive_pwm)
+        # Autonomous mission commands use speed/steering.
+        # Raw PWM override is reserved for manual control.
+        msg.use_pwm_override = False
+        msg.drive_pwm_percent = 0
 
         self.command_pub.publish(msg)
 
