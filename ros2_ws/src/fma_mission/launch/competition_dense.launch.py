@@ -36,6 +36,7 @@ def generate_launch_description():
             parameters=[{
                 'enabled': True,
                 'route_file': route_file,
+                'search_forward_segments': 10,
             }],
         ),
 
