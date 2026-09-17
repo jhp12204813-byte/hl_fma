@@ -25,5 +25,7 @@ setup(
         'lane_detector = fma_perception.lane_detector_node:main',
         'lane_debug_snapshot = fma_perception.lane_debug_snapshot:main',
         'lane_media_replay = fma_perception.lane_media_replay:main',
+        'obstacle_detection = fma_perception.obstacle_detection_node:main',
+        'signal_car_detection = fma_perception.signal_car_detection_node:main',
     ]},
 )
