@@ -14,6 +14,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ObstacleArray.msg"
   "msg/ParkingInfo.msg"
   "msg/LaneSignal.msg"
+  "msg/LaneBoundaryState.msg"
   "msg/MissionState.msg"
   "msg/VehicleFeedback.msg"
   "msg/VehicleCommand.msg"

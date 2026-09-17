@@ -48,11 +48,26 @@ def test_mission_phase_policy(mission, phase, proceed, expected):
 
 
 @pytest.mark.parametrize('mission', ['INTERSECTION_STRAIGHT_1', 'INTERSECTION_STRAIGHT_2',
-    'INTERSECTION_LEFT', 'INTERSECTION_RIGHT', 'SIGNAL_CAR'])
+    'INTERSECTION_LEFT', 'INTERSECTION_RIGHT'])
 def test_perception_gated_missions(mission):
     assert control_mode_for_mission(mission, 'ENTRY') == 'STOP'
     assert control_mode_for_mission(mission, 'ENTRY', proceed=True) == 'LANE'
     assert control_mode_for_mission(mission, 'EXIT') == 'LANE'
+
+
+@pytest.mark.parametrize('phase', [None, 'ENTRY', 'GUIDE', 'EXIT'])
+def test_signal_car_keeps_lane_follow_while_waiting_for_signal(phase):
+    assert control_mode_for_mission(
+        'SIGNAL_CAR',
+        phase,
+        proceed=False,
+    ) == 'LANE'
+
+    assert control_mode_for_mission(
+        'SIGNAL_CAR',
+        phase,
+        proceed=True,
+    ) == 'LANE'
 
 
 def test_normal_drive_can_select_gps_route_policy():
