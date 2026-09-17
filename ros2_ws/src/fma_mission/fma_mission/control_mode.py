@@ -15,7 +15,7 @@ MISSION_CONTROL_MODES = {
     'CHILD_DUMMY': 'OBSTACLE',
     'PARALLEL_PARKING': 'STOP',
     'INTERSECTION_RIGHT': 'LANE',
-    'SIGNAL_CAR': 'STOP',
+    'SIGNAL_CAR': 'LANE',
     'LANE_CHANGE': 'LANE',
     'FINISH': 'FINISH',
 }
@@ -28,10 +28,10 @@ def control_mode_for_mission(
     if mission in ('PERPENDICULAR_PARKING', 'PARALLEL_PARKING'):
         return {'APPROACH': 'LANE', 'ALIGN': 'LANE', 'REVERSE': 'REVERSE',
                 'PARKED': 'STOP', 'COMPLETE': 'STOP'}.get(phase, 'STOP')
-    if mission.startswith('INTERSECTION_') or mission == 'SIGNAL_CAR':
+    if mission.startswith('INTERSECTION_'):
         if phase == 'EXIT':
             return 'LANE'
-        # Legacy callers without phase retain their existing mapping.
+        # Intersections may still wait for perception/feedback.
         if phase is not None:
             return 'LANE' if proceed else 'STOP'
     return MISSION_CONTROL_MODES.get(mission, 'STOP')
