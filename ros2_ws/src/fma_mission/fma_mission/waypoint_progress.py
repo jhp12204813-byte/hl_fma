@@ -127,11 +127,196 @@ BOUNDARIES = ((4, 5), (22, 24), (30, 33), (35, 37), (37, 40),
 SOFT_NUMBERS = {31, 32, *range(68, 76)}
 
 
+
+def load_competition_dense_waypoints(data):
+    """Load a variable-length dense GPS route.
+
+    This loader is intentionally separate from the legacy 1..90 competition
+    validation. Dense route IDs are P001, P002, ... and the number of points
+    is not fixed.
+    """
+    rows = data.get('waypoints')
+    if not isinstance(rows, list):
+        raise ValueError('competition_dense requires a waypoints list')
+    if not rows:
+        raise ValueError('competition_dense route is empty')
+
+    defaults = data.get('defaults', {})
+    if not isinstance(defaults, dict):
+        raise ValueError('competition_dense defaults must be a mapping')
+
+    default_radius = defaults.get('activation_radius_m', 2.0)
+    if (type(default_radius) not in (float, int)
+            or not math.isfinite(default_radius)
+            or default_radius <= 0):
+        raise ValueError('Invalid competition_dense default activation radius')
+
+    route = data.get('route', {})
+    if not isinstance(route, dict):
+        raise ValueError('competition_dense route must be a mapping')
+    if route.get('controller') != 'polyline_lookahead':
+        raise ValueError(
+            'competition_dense route controller must be polyline_lookahead'
+        )
+
+    lookahead = defaults.get('lookahead_m', 1.8)
+    if (type(lookahead) not in (float, int)
+            or not math.isfinite(lookahead)
+            or lookahead <= 0):
+        raise ValueError('Invalid competition_dense lookahead')
+
+    result = []
+
+    for index, row in enumerate(rows, 1):
+        if not isinstance(row, dict):
+            raise ValueError(
+                f'Invalid competition_dense waypoint record at {index}'
+            )
+
+        expected_id = f'P{index:03d}'
+        if row.get('id') != expected_id:
+            raise ValueError(
+                f'competition_dense waypoint IDs must be ordered '
+                f'P001..; expected {expected_id}'
+            )
+
+        lat = row.get('latitude')
+        lon = row.get('longitude')
+        if not valid_coordinates(lat, lon):
+            raise ValueError(
+                f'Invalid competition_dense coordinates at {expected_id}'
+            )
+
+        radius = row.get('activation_radius_m', default_radius)
+        if (type(radius) not in (float, int)
+                or not math.isfinite(radius)
+                or radius <= 0):
+            raise ValueError(
+                f'Invalid activation radius at {expected_id}'
+            )
+
+        kind = row.get('waypoint_type', 'route')
+        if kind != 'route':
+            raise ValueError(
+                'competition_dense currently accepts route points only'
+            )
+
+        mission_entry = row.get('mission_entry')
+        mission_exit = row.get('mission_exit')
+
+        if (
+            mission_entry is not None
+            and mission_entry not in COURSE_MISSIONS
+        ):
+            raise ValueError(
+                f'Invalid dense mission_entry at {expected_id}: '
+                f'{mission_entry}'
+            )
+
+        if (
+            mission_exit is not None
+            and mission_exit not in COURSE_MISSIONS
+        ):
+            raise ValueError(
+                f'Invalid dense mission_exit at {expected_id}: '
+                f'{mission_exit}'
+            )
+
+        result.append(Waypoint(
+            id=expected_id,
+            latitude=float(lat),
+            longitude=float(lon),
+            activation_radius_m=float(radius),
+            missions=(),
+            number=index,
+            role=row.get('role', 'dense_route'),
+            waypoint_type='route',
+            mission=None,
+            mission_entry=mission_entry,
+            mission_exit=mission_exit,
+            recommended_control_mode='GPS',
+            hard_point=True,
+            phase=None,
+            completion_policy='gps',
+        ))
+
+    if len({w.id for w in result}) != len(result):
+        raise ValueError('Duplicate competition_dense waypoint id')
+
+    return tuple(result)
+
+
+def load_school_test_waypoints(data):
+    rows = data.get('waypoints')
+    if not isinstance(rows, list) or len(rows) != 10:
+        raise ValueError('school_test requires exactly 10 waypoints (4..13)')
+
+    result = []
+    for number, row in enumerate(rows, 4):
+        if not isinstance(row, dict):
+            raise ValueError('Invalid school_test waypoint record')
+        if type(row.get('number')) is not int or row['number'] != number:
+            raise ValueError('school_test waypoint numbers must be ordered 4..13')
+
+        lat = row.get('latitude')
+        lon = row.get('longitude')
+        if not valid_coordinates(lat, lon):
+            raise ValueError(f'Invalid school_test coordinates at {number}')
+
+        radius = row.get('activation_radius_m')
+        if (type(radius) not in (float, int)
+                or not math.isfinite(radius) or radius <= 0):
+            raise ValueError('Invalid school_test activation radius')
+
+        if row.get('waypoint_type') != 'route':
+            raise ValueError('school_test waypoints must all be route')
+        if row.get('mission') is not None:
+            raise ValueError('school_test must not contain missions')
+        if row.get('recommended_control_mode') != 'GPS':
+            raise ValueError('school_test route control mode must be GPS')
+        if row.get('hard_point') is not True:
+            raise ValueError('school_test waypoints must be hard points')
+        if row.get('phase') is not None:
+            raise ValueError('school_test route phase must be null')
+
+        waypoint_id = row.get('id')
+        if not isinstance(waypoint_id, str) or not waypoint_id:
+            raise ValueError('Missing school_test waypoint id')
+
+        result.append(Waypoint(
+            waypoint_id,
+            lat,
+            lon,
+            radius,
+            (),
+            number=number,
+            role=row.get('role', ''),
+            waypoint_type='route',
+            mission=None,
+            recommended_control_mode='GPS',
+            hard_point=True,
+            phase=None,
+            completion_policy='gps',
+        ))
+
+    if len({w.id for w in result}) != 10:
+        raise ValueError('Duplicate school_test waypoint id')
+
+    return tuple(result)
+
+
 def load_waypoints(path):
     with open(path, encoding='utf-8') as stream:
         data = yaml.safe_load(stream)
     if not isinstance(data, dict) or not isinstance(data.get('waypoints'), list):
         raise ValueError('Expected waypoints list')
+
+    if data.get('profile') == 'competition_dense':
+        return load_competition_dense_waypoints(data)
+
+    if data.get('profile') == 'school_test':
+        return load_school_test_waypoints(data)
+
     rows = data['waypoints']
     if rows and isinstance(rows[0], dict) and 'number' not in rows[0]:
         return load_legacy_waypoints(path)
@@ -311,7 +496,17 @@ class WaypointProgress(LegacyWaypointProgress):
                     self.phase = w.phase
             elif w.waypoint_type == 'route':
                 self.phase = None
+
+            final_route = (
+                w.waypoint_type == 'route'
+                and self.target_index == len(self.waypoints) - 1
+            )
+
             self._advance()
+
+            if final_route:
+                self.state = 'FINISH'
+
             self._status_boundary()
         return distance
 
@@ -325,3 +520,195 @@ class WaypointProgress(LegacyWaypointProgress):
         self._status_boundary()
         self._boundary()
         return True
+
+
+class DenseRouteProgress:
+    """Progress state for variable-length polyline competition routes.
+
+    Driving geometry is owned by dense_gps_controller.
+    This class only consumes monotonic route progress and owns mission state.
+    Mission anchors will be added separately.
+    """
+
+    def __init__(self, waypoints):
+        if not waypoints or len(waypoints) < 2:
+            raise ValueError(
+                'Dense route requires at least 2 waypoints'
+            )
+
+        for index, waypoint in enumerate(waypoints, 1):
+            if waypoint.number != index:
+                raise ValueError(
+                    'Dense waypoint numbers must be sequential'
+                )
+            if waypoint.id != f'P{index:03d}':
+                raise ValueError(
+                    'Dense waypoint IDs must be P001..'
+                )
+            if waypoint.waypoint_type != 'route':
+                raise ValueError(
+                    'DenseRouteProgress currently accepts route points only'
+                )
+
+        self.waypoints = tuple(waypoints)
+
+        self.target_index = 0
+        self.segment_index = 0
+
+        self.progress_s_m = 0.0
+        self.total_length_m = None
+
+        self.state = 'START'
+        self.phase = None
+
+        # Compatibility with MissionManagerNode diagnostics.
+        self.legacy = False
+        self.events = []
+
+    @property
+    def target(self):
+        return self.waypoints[self.target_index]
+
+    @property
+    def active(self):
+        return self.state not in (
+            'START',
+            'NORMAL_DRIVE',
+            'FINISH',
+        )
+
+    def start(self):
+        if self.state != 'START':
+            return
+
+        self.state = 'NORMAL_DRIVE'
+
+        # P001 is the initial dense route point.
+        self._process_boundary(self.waypoints[0])
+
+    def gps(self, latitude, longitude, fix_valid=True):
+        # Dense driving progress comes from /mission/route_progress,
+        # never from point-to-point waypoint activation.
+        return None
+
+    def _process_boundary(self, waypoint):
+        changed = False
+
+        # Mission exit is processed before a possible entry at
+        # the same route point.
+        if waypoint.mission_exit is not None:
+            if self.state == waypoint.mission_exit:
+                self.state = 'NORMAL_DRIVE'
+                self.phase = None
+                self.events.append((waypoint, 'mission_exit'))
+                changed = True
+
+        if waypoint.mission_entry is not None:
+            self.state = waypoint.mission_entry
+            self.phase = waypoint.phase
+            self.events.append((waypoint, 'mission_entry'))
+            changed = True
+
+        return changed
+
+    def route_progress(
+        self,
+        segment_index,
+        progress_s_m,
+        total_length_m,
+        finished,
+    ):
+        if self.state == 'FINISH':
+            return False
+
+        if (
+            type(segment_index) is not int
+            or segment_index < 0
+            or segment_index > len(self.waypoints) - 2
+        ):
+            raise ValueError('Invalid dense segment_index')
+
+        if (
+            type(progress_s_m) not in (int, float)
+            or isinstance(progress_s_m, bool)
+            or not math.isfinite(progress_s_m)
+            or progress_s_m < 0
+        ):
+            raise ValueError('Invalid dense progress_s_m')
+
+        if (
+            type(total_length_m) not in (int, float)
+            or isinstance(total_length_m, bool)
+            or not math.isfinite(total_length_m)
+            or total_length_m <= 0
+        ):
+            raise ValueError('Invalid dense total_length_m')
+
+        if type(finished) is not bool:
+            raise ValueError('Invalid dense finished flag')
+
+        progress_s_m = float(progress_s_m)
+        total_length_m = float(total_length_m)
+
+        if progress_s_m > total_length_m + 1e-6:
+            raise ValueError(
+                'Dense progress exceeds route length'
+            )
+
+        if self.total_length_m is None:
+            self.total_length_m = total_length_m
+        elif abs(
+            total_length_m - self.total_length_m
+        ) > 0.5:
+            raise ValueError(
+                'Dense route length changed unexpectedly'
+            )
+
+        # Never allow delayed/out-of-order messages to move progress backward.
+        if (
+            progress_s_m < self.progress_s_m
+            or segment_index < self.segment_index
+        ):
+            return False
+
+        previous_segment_index = self.segment_index
+
+        changed = (
+            progress_s_m != self.progress_s_m
+            or segment_index != self.segment_index
+            or finished
+        )
+
+        self.progress_s_m = progress_s_m
+        self.segment_index = segment_index
+
+        # segment 0 = P001 -> P002.
+        # When segment index advances, every crossed waypoint is
+        # processed in order for mission entry/exit.
+        boundary_changed = False
+
+        if segment_index > previous_segment_index:
+            for waypoint_index in range(
+                previous_segment_index + 1,
+                segment_index + 1,
+            ):
+                waypoint = self.waypoints[waypoint_index]
+                if self._process_boundary(waypoint):
+                    boundary_changed = True
+
+        # Segment 0 = P001 -> P002, so P002 is the diagnostic target.
+        self.target_index = min(
+            segment_index + 1,
+            len(self.waypoints) - 1,
+        )
+
+        if finished:
+            self.target_index = len(self.waypoints) - 1
+            self.state = 'FINISH'
+
+        return changed or boundary_changed
+
+    def complete(self, mission, completed):
+        # Mission completion handling will be enabled when dense
+        # mission anchors are added.
+        return False

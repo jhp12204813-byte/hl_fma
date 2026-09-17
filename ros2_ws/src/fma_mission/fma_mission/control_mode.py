@@ -21,9 +21,10 @@ MISSION_CONTROL_MODES = {
 }
 
 
-def control_mode_for_mission(mission, phase=None, *, proceed=False):
-    if mission == 'NORMAL_DRIVE' and phase in ('COMPLETE', 'PARKED'):
-        return 'STOP'
+def control_mode_for_mission(
+        mission, phase=None, *, proceed=False, normal_drive_mode='LANE'):
+    if mission == 'NORMAL_DRIVE':
+        return normal_drive_mode if normal_drive_mode in ('LANE', 'GPS') else 'STOP'
     if mission in ('PERPENDICULAR_PARKING', 'PARALLEL_PARKING'):
         return {'APPROACH': 'LANE', 'ALIGN': 'LANE', 'REVERSE': 'REVERSE',
                 'PARKED': 'STOP', 'COMPLETE': 'STOP'}.get(phase, 'STOP')

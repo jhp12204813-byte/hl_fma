@@ -26,10 +26,9 @@ must not leak into perception, localization, mission, or control nodes.
 
 | Topic | Message Type | Publisher | Subscriber | Unit | frame_id | Purpose | Status |
 |---|---|---|---|---|---|---|---|
-| `/camera/lane/image_raw` | `sensor_msgs/msg/Image` | USB lane camera driver (remapped) | `lane_detection_node`, `stopline_detection_node` | Pixels; encoding-defined | TBD sensor optical frame | Lane and stop-line source image | FIXED |
-| `/camera/signal/image_raw` | `sensor_msgs/msg/Image` | USB signal camera driver (remapped) | `traffic_light_detection_node`, `lane_signal_detection_node` | Pixels; encoding-defined | TBD sensor optical frame | Traffic-light and lane-control-signal source image | FIXED |
-| `/front/color/image_raw` | `sensor_msgs/msg/Image` | Front RealSense driver (remapped) | `obstacle_detection_node`, `parking_perception_node` | Pixels; encoding-defined | TBD front color optical frame | Front RGB data | FIXED |
-| `/front/depth/image_raw` | `sensor_msgs/msg/Image` | Front RealSense driver (remapped) | `obstacle_detection_node`, `parking_perception_node` | TBD from image encoding; perception outputs use m | TBD front depth optical frame | Front depth data | FIXED |
+| `/camera/front/image_raw` | `sensor_msgs/msg/Image` | `c920_camera` | Future `traffic_light_detector`, `signal_car_detector` | Pixels; bgr8 | front_camera | C920 traffic-light / signal-car image | FIXED |
+| `/front/color/image_raw` | `sensor_msgs/msg/Image` | Front RealSense driver (remapped) | `lane_detector`, future stopline/obstacle nodes | Pixels; encoding-defined | TBD front color optical frame | D435i RGB lane detection; stopline/obstacles later | FIXED |
+| `/front/depth/image_raw` | `sensor_msgs/msg/Image` | Front RealSense driver (remapped) | Future stopline-distance / obstacle nodes | TBD from image encoding; perception outputs use m | TBD front depth optical frame | D435i depth reserved; unused by current lane detector | FIXED |
 | `/rear/color/image_raw` | `sensor_msgs/msg/Image` | Rear RealSense driver (remapped) | `parking_perception_node` | Pixels; encoding-defined | TBD rear color optical frame | Rear RGB data | FIXED |
 | `/rear/depth/image_raw` | `sensor_msgs/msg/Image` | Rear RealSense driver (remapped) | `parking_perception_node` | TBD from image encoding; perception outputs use m | TBD rear depth optical frame | Rear depth data | FIXED |
 | `/scan` | `sensor_msgs/msg/LaserScan` | RPLIDAR driver (remapped) | `obstacle_detection_node`, `parking_perception_node` | Range: m; angles: rad | TBD lidar frame | Planar LiDAR scan | FIXED |
@@ -42,7 +41,9 @@ this is the intentional exception to the project's SI preference.
 
 | Topic | Message Type | Publisher | Subscriber | Unit | frame_id | Purpose | Status |
 |---|---|---|---|---|---|---|---|
-| `/perception/lane` | `fma_interfaces/msg/Lane` | `lane_detection_node` | `lane_controller_node`, mission nodes that require lane context | Lateral error: m; heading: rad; curvature: 1/m; confidence: dimensionless | TBD | Detected lane geometry and confidence | FIXED |
+| `/perception/lane` | `fma_interfaces/msg/Lane` | `lane_detector` | `lane_controller`, mission nodes that require lane context | Lateral error: m; heading: rad; curvature: 1/m; confidence: dimensionless | TBD | Detected lane geometry and confidence | FIXED |
+| `/perception/lane/debug_image` | `sensor_msgs/msg/Image` | `lane_detector` | rqt_image_view | Pixels; bgr8 | Input image frame | ROI and lane estimate overlay | FIXED |
+| `/perception/lane/debug_mask` | `sensor_msgs/msg/Image` | `lane_detector` | rqt_image_view | Pixels; bgr8 | Input image frame | White/yellow candidates after ROI and noise filtering | FIXED |
 | `/perception/stopline` | `fma_interfaces/msg/StopLine` | `stopline_detection_node` | `mission_stopline_node`, `mission_traffic_light_node` | Distance: m; confidence: dimensionless | TBD | Stop-line detection and distance | FIXED |
 | `/perception/traffic_light` | `fma_interfaces/msg/TrafficLight` | `traffic_light_detection_node` | `mission_traffic_light_node` | State: enum; confidence: dimensionless | TBD | Classified traffic-light state | FIXED |
 | `/perception/obstacles` | `fma_interfaces/msg/ObstacleArray` | `obstacle_detection_node` | `safety_manager`, `mission_s_curve_node` | Position/distance: m; bearing: rad; confidence: dimensionless | `base_link` | Obstacles expressed in the vehicle body frame | FIXED |
@@ -85,7 +86,7 @@ StopLine and TrafficLight perception messages remain unchanged.
 
 | Topic | Message Type | Publisher | Subscriber | Unit | frame_id | Purpose | Status |
 |---|---|---|---|---|---|---|---|
-| `/cmd/lane` | `fma_interfaces/msg/DriveCommand` | `lane_controller_node` | `command_arbiter` | Speed: m/s; steering: rad | TBD | Normal lane-following command candidate | FIXED |
+| `/cmd/lane` | `fma_interfaces/msg/DriveCommand` | `lane_controller` | `command_arbiter` | Speed: m/s; steering: rad | TBD | Normal lane-following command candidate | FIXED |
 | `/cmd/mission` | `fma_interfaces/msg/DriveCommand` | Active mission node | `command_arbiter` | Speed: m/s; steering: rad | TBD | Mission-specific command candidate | FIXED |
 | `/cmd/manual` | `fma_interfaces/msg/DriveCommand` | `keyboard_teleop` / human manual control | `command_arbiter` | Speed: m/s; steering: rad | TBD | Highest-priority human manual override | FIXED |
 | `/cmd/emergency` | `fma_interfaces/msg/DriveCommand` | `safety_manager` | `command_arbiter` | Speed: m/s; steering: rad | TBD | Latched safety command below fresh valid manual | FIXED |
@@ -126,9 +127,9 @@ StopLine and TrafficLight perception messages remain unchanged.
 `vehicle_controller` owns the conversion from `DriveCommand.speed_mps` and
 `DriveCommand.steering_angle_rad` to `VehicleCommand.drive_state` and
 `VehicleCommand.steering_adc`. The bridge only translates these
-low-level values to `W`/`S`/`X`/`Tdddd` serial commands. Current firmware has no
-numeric speed command; this interface adds no speed target, PWM, motor percentage,
-or steering angle. Measured controller calibration is enabled by default:
+low-level values to `Vddd`/`W`/`S`/`X`/`Tdddd` serial commands. Current firmware has no
+numeric speed command. Both command messages add `use_pwm_override` (default false)
+and `drive_pwm_percent` (0..100), not a regulated speed target. Measured controller calibration is enabled by default:
 RIGHT=-0.3054 rad (-17.5 degrees)/ADC 150, CENTER=0 rad/ADC 2132,
 LEFT=+0.2810 rad (+16.1 degrees)/ADC 3950. Positive angles steer left and negative
 angles steer right (REP-103). Finite out-of-range angles clamp to the operational
@@ -137,16 +138,23 @@ left ≈4095).
 
 The implemented bridge consumes `/vehicle/command` and publishes
 `/vehicle/feedback`. It validates drive state and steering ADC range, and sends
-only `X` for STOP, emergency, invalid input, or stale input. Its independent
+`X` then `Tdddd` for a valid STOP steering target. Emergency, invalid input,
+and stale input send only `X`. Its independent
 `vehicle_command_timeout_sec` defaults to 0.5 seconds since the last valid
 non-emergency command; startup also remains STOP. Drive and steering refreshes
-share one serial TX path, with one command per write and no steering during STOP.
+share one serial TX path with at least 20 ms between packets. Motion sends
+`Vddd` then W/S; pending direction is cancelled on STOP, invalid input or timeout.
+Only the selected manual source can forward PWM override through the arbiter.
+Without override, the bridge restores `V015` (15%), including autonomous fallback
+following manual expiry. Keyboard starts STOP/0%, steps by 5% up to 20% by default,
+and requires STOP/0% before reversing. PWM is distinct from measured km/h.
+All command publishers/subscribers must rebuild and restart for the expanded messages.
 
 The following boundaries are mandatory:
 
 - Perception nodes must not control the STM32 directly.
 - Mission nodes must not control the STM32 directly.
-- `lane_controller_node` must not send commands directly to the STM32.
+- `lane_controller` must not send commands directly to the STM32.
 - Every final drive command must pass through `command_arbiter`.
 
 The fixed arbitration priority is:
@@ -251,15 +259,15 @@ The conceptual TF tree is:
 map
 └── odom
     └── base_link
-        ├── lane_camera_frame
-        ├── signal_camera_frame
+        ├── front_camera
         ├── front_depth_frame
         ├── rear_depth_frame
         ├── lidar_frame
         └── gps_frame
 ```
 
-Only `base_link` and the REP-103 axis convention are fixed here. The displayed
+The C920 image uses `front_camera`; its mounting transform is not provided.
+Only `base_link` and the REP-103 axis convention are otherwise fixed here. The displayed
 sensor-frame names and the final `map`/`odom` TF design are examples and remain
 TBD until sensor mounting positions and TF publishers are designed.
 
@@ -296,3 +304,13 @@ The following items are explicitly TBD:
 - Depth-image encoding/unit handling
 - Confidence-field range and invalid-value semantics
 - Final QoS tuning
+
+The initial lane detector preserves input image headers. Without measured lane_width_m
+and longitudinal meters_per_pixel_y calibration, it publishes detected=false and zero
+metric errors/confidence while still providing visual overlays. Curvature=0 means
+unavailable. See [perception README](../ros2_ws/src/fma_perception/README_KO.md).
+
+Lane control consumes /perception/lane and publishes /cmd/lane at 20 Hz.
+It defaults to enabled=false; invalid, missing, low-confidence or stale lane
+(age >= 0.5 s local monotonic receive time by default) produces zero speed/steering
+with emergency_stop=false. Priority remains MANUAL > EMERGENCY > MISSION > LANE.

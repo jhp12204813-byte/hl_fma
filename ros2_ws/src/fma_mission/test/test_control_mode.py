@@ -29,7 +29,7 @@ def test_gps_fallback_requires_explicit_invalid_none_and_controller():
 @pytest.mark.parametrize('mission,phase,proceed,expected', [
     ('START', None, False, 'STOP'),
     ('NORMAL_DRIVE', None, False, 'LANE'),
-    ('NORMAL_DRIVE', 'COMPLETE', False, 'STOP'),
+    ('NORMAL_DRIVE', 'COMPLETE', False, 'LANE'),
     ('RAMP', 'ENTRY', False, 'LANE'),
     ('S_CURVE', 'GUIDE', True, 'OBSTACLE'),
     ('CHILD_DUMMY', 'GUIDE', True, 'OBSTACLE'),
@@ -53,3 +53,12 @@ def test_perception_gated_missions(mission):
     assert control_mode_for_mission(mission, 'ENTRY') == 'STOP'
     assert control_mode_for_mission(mission, 'ENTRY', proceed=True) == 'LANE'
     assert control_mode_for_mission(mission, 'EXIT') == 'LANE'
+
+
+def test_normal_drive_can_select_gps_route_policy():
+    assert control_mode_for_mission(
+        'NORMAL_DRIVE', normal_drive_mode='GPS') == 'GPS'
+    assert control_mode_for_mission(
+        'NORMAL_DRIVE', normal_drive_mode='LANE') == 'LANE'
+    assert control_mode_for_mission(
+        'NORMAL_DRIVE', normal_drive_mode='STOP') == 'STOP'

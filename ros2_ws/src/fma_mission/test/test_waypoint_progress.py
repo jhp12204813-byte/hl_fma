@@ -124,7 +124,13 @@ def test_phase_is_reached_point_and_parking_complete_stop():
     arrive(p)
     assert p.phase == 'REVERSE' and control_mode_for_mission(p.state, p.phase) == 'REVERSE'
     arrive(p)
-    assert p.phase == 'COMPLETE' and control_mode_for_mission(p.state, p.phase) == 'STOP'
+    assert p.phase == 'COMPLETE'
+    assert p.state == 'NORMAL_DRIVE'
+    assert p.target.number == 41
+    assert control_mode_for_mission(
+        p.state,
+        p.phase,
+        normal_drive_mode=p.target.recommended_control_mode) == 'GPS'
     arrive(p)
     assert p.phase is None and control_mode_for_mission(p.state, p.phase) == 'LANE'
 
@@ -194,3 +200,31 @@ def test_reached_later_soft_guide_skips_only_preceding_soft():
     p.gps(w.latitude, w.longitude)
     assert p.target.number == 74 and p.state == 'CHILD_DUMMY' and p.phase == 'GUIDE'
     assert control_mode_for_mission(p.state, p.phase) == 'OBSTACLE'
+
+
+def test_school_test_10_route_waypoints_finish():
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / 'config'
+        / 'test_cheong.yaml'
+    )
+
+    waypoints = load_waypoints(path)
+    assert len(waypoints) == 10
+    assert [w.number for w in waypoints] == list(range(4, 14))
+    assert all(w.waypoint_type == 'route' for w in waypoints)
+    assert all(w.recommended_control_mode == 'GPS' for w in waypoints)
+
+    p = WaypointProgress(waypoints)
+    p.start()
+    assert p.state == 'NORMAL_DRIVE'
+
+    for number in range(4, 14):
+        w = p.target
+        assert w.number == number
+        p.gps(w.latitude, w.longitude, True)
+
+    assert p.state == 'FINISH'
+    assert p.target.number == 13

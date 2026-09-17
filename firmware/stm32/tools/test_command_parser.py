@@ -15,7 +15,7 @@ HARNESS = r'''
 
 static void reset(void)
 {
-  command_fail_safe();
+  uart2_process_byte('X', g_millis);
   rx_head = rx_tail = rx_fault = 0;
   g_millis = 100;
   steering_target = 2132;
@@ -119,6 +119,61 @@ int main(void)
     queued("T2182"); uart2_process_rx();
     assert(!rx_fault && steering_active && steering_target == 2182);
   }
+  /* PWM alone cannot start traction; updates preserve the current direction. */
+  const char *pwms[] = {"V005", "V010", "V015", "V020", "V100", "V000", "v005"};
+  const unsigned duties[] = {5, 10, 15, 20, 100, 0, 5};
+  for (unsigned i = 0; i < 7; i++)
+  {
+    reset(); feed(pwms[i]);
+    assert(drive_state == DRIVE_STOP && TIM2->CCR2 == 0 && TIM3->CCR1 == 0);
+    assert(drive_pwm_percent == duties[i] && drive_pwm_compare == duties[i] * 8);
+    feed("W");
+    assert(drive_state == DRIVE_FORWARD && TIM2->CCR2 == duties[i] * 8);
+    assert(TIM3->CCR1 == duties[i] * 8);
+    feed(pwms[i]); feed("S");
+    assert(drive_state == DRIVE_REVERSE && TIM2->CCR2 == duties[i] * 8);
+    feed("V010");
+    assert(drive_state == DRIVE_REVERSE && TIM2->CCR2 == 80 && TIM3->CCR1 == 80);
+    feed("XW"); assert(TIM2->CCR2 == DRIVE_PWM);
+    feed("QS"); assert(TIM2->CCR2 == DRIVE_PWM && drive_state == DRIVE_REVERSE);
+  }
+  const char *bad_pwm[] = {"V101", "V999", "V-05", "V0W", "V0S", "V0?", "VV", "V0 "};
+  for (unsigned i = 0; i < sizeof(bad_pwm)/sizeof(bad_pwm[0]); i++)
+  {
+    reset(); feed("WT2300"); feed(bad_pwm[i]); stopped();
+    feed("005WS"); stopped(); /* no trailing direction after rejected duty */
+    feed("V010W"); assert(TIM2->CCR2 == 80 && drive_state == DRIVE_FORWARD);
+  }
+  const char *partial_pwm[] = {"V", "V0", "V01"};
+  for (unsigned i = 0; i < 3; i++)
+  {
+    reset(); feed("W"); feed(partial_pwm[i]);
+    assert(TIM2->CCR2 == DRIVE_PWM && TIM3->CCR1 == DRIVE_PWM);
+    uint32_t last = steering_packet_last_ms;
+    assert(!parser_check_timeout(last + 49));
+    assert(parser_check_timeout(last + 50)); stopped();
+    feed("WS"); stopped();
+    reset(); feed(partial_pwm[i]); feed("X"); stopped();
+    reset(); feed(partial_pwm[i]); feed("x"); stopped();
+    for (unsigned j = 0; j < 4; j++)
+    {
+      reset(); feed(partial_pwm[i]); queued("05W");
+      receive('S', USART_SR_RXNE | errors[j]); uart2_process_rx(); stopped();
+      feed("W"); stopped();
+    }
+    reset(); feed(partial_pwm[i]);
+    for (unsigned j = 0; j < UART_RX_CAPACITY; j++) receive('W', USART_SR_RXNE);
+    uart2_process_rx(); stopped(); feed("S"); stopped();
+  }
+  reset(); feed("V0");
+  uart2_process_byte('W', steering_packet_last_ms + 50); stopped();
+  reset(); queued("V005W"); uart2_process_rx(); assert(TIM2->CCR2 == 40);
+  reset(); queued("V0"); uart2_process_rx();
+  g_millis += 50; uart2_process_rx(); stopped();
+  reset(); feed("V020WXT3041"); steering_update(2132);
+  assert(drive_state == DRIVE_STOP && TIM2->CCR2 == 0 && TIM3->CCR1 == 0);
+  assert(steering_active && steering_target == 3041 && TIM3->CCR2 == STEERING_PWM);
+  puts("PASS: V000..V100, duty conversion, rejected PWM direction lockout, stationary steering");
   puts("PASS: orphan digits, valid/malformed/incomplete T, 50ms timeout, X preemption,");
   puts("      arrival timestamps, wraparound, overflow, UART errors, W/S compatibility");
   return 0;

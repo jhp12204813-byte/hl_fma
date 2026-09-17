@@ -1,0 +1,149 @@
+site: school
+profile: competition_dense
+description: "교내 dense 연습주행"
+
+route:
+  controller: polyline_lookahead
+
+defaults:
+  activation_radius_m: 2.0
+  lookahead_m: 1.8
+
+waypoints:
+  - id: P001
+    latitude: 37.54249701
+    longitude: 127.07697712
+    waypoint_type: route
+    mission_entry: S_CURVE
+
+  - id: P002
+    latitude: 37.54250583
+    longitude: 127.07691488
+    waypoint_type: route
+
+  - id: P003
+    latitude: 37.54251325
+    longitude: 127.07685549
+    waypoint_type: route
+    mission_exit: S_CURVE
+
+  - id: P004
+    latitude: 37.54252753
+    longitude: 127.07677353
+    waypoint_type: route
+    mission_entry: CHILD_DUMMY
+
+  - id: P005
+    latitude: 37.54253269
+    longitude: 127.07669451
+    waypoint_type: route
+
+  - id: P006
+    latitude: 37.54254231
+    longitude: 127.07658675
+    waypoint_type: route
+    mission_exit: CHILD_DUMMY
+
+  - id: P007
+    latitude: 37.54254887
+    longitude: 127.07651779
+    waypoint_type: route
+    mission_entry: INTERSECTION_STRAIGHT_1
+
+  - id: P008
+    latitude: 37.54255547
+    longitude: 127.07645745
+    waypoint_type: route
+
+  - id: P009
+    latitude: 37.54255663
+    longitude: 127.0764136
+    waypoint_type: route
+
+  - id: P010
+    latitude: 37.542555878
+    longitude: 127.07637298
+    waypoint_type: route
+
+  - id: P011
+    latitude: 37.54256283
+    longitude: 127.07632466
+    waypoint_type: route
+
+  - id: P012
+    latitude: 37.5425769
+    longitude: 127.07626547
+    waypoint_type: route
+
+  - id: P013
+    latitude: 37.54258536
+    longitude: 127.07621314
+    waypoint_type: route
+
+  - id: P014
+    latitude: 37.5425947
+    longitude: 127.07617231
+    waypoint_type: route
+
+  - id: P015
+    latitude: 37.54259804
+    longitude: 127.07613071
+    waypoint_type: route
+
+  - id: P016
+    latitude: 37.54260791
+    longitude: 127.0760834
+    waypoint_type: route
+    mission_exit: INTERSECTION_STRAIGHT_1
+
+  - id: P017
+    latitude: 37.54261733
+    longitude: 127.07603673
+    waypoint_type: route
+
+  - id: P018
+    latitude: 37.54263642
+    longitude: 127.07596402
+    waypoint_type: route
+
+  - id: P019
+    latitude: 37.54265055
+    longitude: 127.07590537
+    waypoint_type: route
+
+  - id: P020
+    latitude: 37.54267087
+    longitude: 127.07584407
+    waypoint_type: route
+
+  - id: P021
+    latitude: 37.54268559
+    longitude: 127.07578631
+    waypoint_type: route
+    mission_entry: RAMP
+
+  - id: P022
+    latitude: 37.54270242
+    longitude: 127.07573297
+    waypoint_type: route
+
+  - id: P023
+    latitude: 37.54271354
+    longitude: 127.07568797
+    waypoint_type: route
+
+  - id: P024
+    latitude: 37.54273236
+    longitude: 127.0756225
+    waypoint_type: route
+    mission_exit: RAMP
+
+  - id: P025
+    latitude: 37.54274529
+    longitude: 127.07556612
+    waypoint_type: route
+
+  - id: P026
+    latitude: 37.5427605
+    longitude: 127.07552226
+    waypoint_type: route

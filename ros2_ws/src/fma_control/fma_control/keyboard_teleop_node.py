@@ -10,6 +10,7 @@ import tty
 
 import rclpy
 from rclpy.clock import Clock, ClockType
+from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
@@ -23,14 +24,29 @@ class TeleopState:
     steering: float = 0.0
     quit_requested: bool = False
 
+    pwm_percent: int = 0
+    pwm_step: int = 5
+    pwm_max: int = 50
+
+    def __post_init__(self):
+        if type(self.pwm_step) is not int or not 1 <= self.pwm_step <= 100:
+            raise ValueError('manual_pwm_step_percent must be an integer in 1..100')
+        if type(self.pwm_max) is not int or not 0 <= self.pwm_max <= 50:
+            raise ValueError('manual_pwm_max_percent must be an integer in 0..50')
+
     def handle_key(self, key):
         if self.quit_requested:
             return
         key = key.lower()
-        if key == 'w':
-            self.drive = 'FORWARD'
-        elif key == 's':
-            self.drive = 'REVERSE'
+        if key in ('w', 's'):
+            requested = 'FORWARD' if key == 'w' else 'REVERSE'
+            if self.drive not in ('STOP', requested):
+                self.pwm_percent = max(0, self.pwm_percent - self.pwm_step)
+                if self.pwm_percent == 0:
+                    self.drive = 'STOP'
+            else:
+                self.pwm_percent = min(self.pwm_max, self.pwm_percent + self.pwm_step)
+                self.drive = requested if self.pwm_percent else 'STOP'
         elif key == 'a':
             self.steering = min(0.2810, self.steering + 0.05)
         elif key == 'd':
@@ -39,6 +55,7 @@ class TeleopState:
             self.steering = 0.0
         elif key in (' ', 'x', 'q', '\x03'):
             self.drive = 'STOP'
+            self.pwm_percent = 0
             self.quit_requested = key in ('q', '\x03')
 
     @property
@@ -54,7 +71,11 @@ def speed_display(speed_mps):
 class KeyboardTeleopNode(Node):
     def __init__(self):
         super().__init__('keyboard_teleop')
-        self.state = TeleopState()
+        self.state = TeleopState(
+            pwm_step=self.declare_parameter('manual_pwm_step_percent', 5,
+                                           ParameterDescriptor(read_only=True)).value,
+            pwm_max=self.declare_parameter('manual_pwm_max_percent', 50,
+                                          ParameterDescriptor(read_only=True)).value)
         self.feedback = None
         self.feedback_received = None
         self.publisher = self.create_publisher(DriveCommand, '/cmd/manual', 1)
@@ -74,6 +95,8 @@ class KeyboardTeleopNode(Node):
         msg.speed_mps = self.state.speed_mps
         msg.steering_angle_rad = self.state.steering
         msg.emergency_stop = False
+        msg.use_pwm_override = True
+        msg.drive_pwm_percent = self.state.pwm_percent
         self.publisher.publish(msg)
 
     def handle_key(self, key):
@@ -83,6 +106,7 @@ class KeyboardTeleopNode(Node):
 
     def stop_repeatedly(self):
         self.state.drive = 'STOP'
+        self.state.pwm_percent = 0
         self.state.quit_requested = True
         try:
             self.timer.cancel()
@@ -107,12 +131,13 @@ class KeyboardTeleopNode(Node):
         return (
             '========================================\n'
             ' FMA KEYBOARD TELEOP\n'
-            'W: 전진  S: 후진  A: 좌조향  D: 우조향\n'
+            'W: 전진 가속/후진 감속  S: 전진 감속/후진 가속  A: 좌조향  D: 우조향\n'
             'C: 중앙  SPACE/X: 정지  Q/Ctrl+C: 정지 후 종료\n'
             '다른 /cmd/manual publisher를 실행하지 마세요. 종료 후 timeout이면 자율주행이 재개될 수 있습니다.\n'
-            'STOP 상태에서는 실제 조향이 움직이지 않을 수 있음\n'
+            'STOP 상태에서도 A/D/C 조향 가능. 반대 방향 키는 PWM 감속 → STOP → 다음 입력에 방향 전환.\n'
             '+/-0.2 명령은 방향 표시이며 실제 속도 목표가 아닙니다.\n'
             f'DRIVE TARGET : {self.state.drive}\n'
+            f'PWM   : {self.state.pwm_percent} % (실제 속도와 다름)\n'
             f'STEER TARGET : {self.state.steering:+.4f} rad '
             f'({math.degrees(self.state.steering):+.1f} deg)\n'
             f'DRIVE FEEDBACK : {measured}\n'

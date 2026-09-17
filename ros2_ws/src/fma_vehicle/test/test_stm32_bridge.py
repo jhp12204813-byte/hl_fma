@@ -108,11 +108,16 @@ def test_topic_parameters(env):
 def test_drive_mapping(env, state, packet):
     node = env.make()
     node.on_command(command(state))
-    assert packets(env) == [packet]
+    if state != VehicleCommand.DRIVE_STOP:
+        assert packets(env) == [b'V015']
+        advance(env, node, 100.03)
+        assert packets(env) == [b'V015', packet]
+    else:
+        assert packets(env) == [packet]
     if state == VehicleCommand.DRIVE_STOP:
         for now in (100.03, 100.21, 100.4):
             advance(env, node, now)
-        assert set(packets(env)) == {b'X'}
+        assert set(packets(env)) == {b'X', b'T2132'}
 
 
 @pytest.mark.parametrize('adc,packet', [(2132, b'T2132'), (150, b'T0150'), (3950, b'T3950')])
@@ -120,10 +125,10 @@ def test_steering_and_serialized_refresh(env, adc, packet):
     node = env.make()
     node.on_command(command(adc=adc))
     advance(env, node, 100.01)
-    assert packets(env) == [b'W']
-    for now in (100.03, 100.14, 100.21):
+    assert packets(env) == [b'V015']
+    for now in (100.03, 100.06, 100.17, 100.24, 100.27):
         advance(env, node, now)
-    assert packets(env) == [b'W', packet, packet, b'W']
+    assert packets(env) == [b'V015', b'W', packet, packet, b'V015', b'W']
 
 
 @pytest.mark.parametrize('state,adc,emergency', [
@@ -149,7 +154,7 @@ def test_startup_timeout_and_recovery(env):
     assert packets(env) == [b'X']
     env.now[0] = 100.21
     node.on_command(command())
-    assert packets(env)[-1] == b'W'
+    assert packets(env)[-1] == b'V015'
     advance(env, node, 100.709)
     assert packets(env)[-1] != b'X'
     advance(env, node, 100.74)
@@ -159,6 +164,8 @@ def test_startup_timeout_and_recovery(env):
     assert packets(env) == [b'X']
     env.now[0] = 101.21
     node.on_command(command(VehicleCommand.DRIVE_REVERSE))
+    assert packets(env)[-1] == b'V015'
+    advance(env, node, 101.24)
     assert packets(env)[-1] == b'S'
 
 
@@ -167,7 +174,7 @@ def test_timeout_boundary(env, timeout):
     node = env.make(vehicle_command_timeout_sec=timeout)
     node.on_command(command())
     advance(env, node, 100. + timeout)
-    assert packets(env) == [b'W', b'X']
+    assert packets(env) == [b'V015', b'X']
 
 
 @pytest.mark.parametrize('timeout', [0., -1., math.nan, math.inf])
@@ -270,3 +277,101 @@ def test_explicit_port_override(env):
     node = env.make(port='/some/device')
     assert node.config['port'] == '/some/device'
     assert env.serial.call_args.kwargs['port'] == '/some/device'
+
+
+@pytest.mark.parametrize('pwm', [0, 5, 10, 15, 20, 100])
+@pytest.mark.parametrize('state,direction', [(1, b'W'), (2, b'S')])
+def test_pwm_override_and_default_restore(env, pwm, state, direction):
+    node = env.make()
+    msg = command(state)
+    msg.use_pwm_override, msg.drive_pwm_percent = True, pwm
+    node.on_command(msg)
+    advance(env, node, 100.03)
+    assert packets(env) == [f'V{pwm:03d}'.encode(), direction]
+    env.now[0] = 100.06
+    node.on_command(command(state))
+    advance(env, node, 100.09)
+    assert packets(env)[-2:] == [b'V015', direction] or pwm == 15
+    assert node.pwm_percent == 15
+
+
+@pytest.mark.parametrize('pwm', [101, 255])
+def test_invalid_pwm_cancels_pending_direction(env, pwm):
+    node = env.make()
+    node.on_command(command())
+    msg = command()
+    msg.use_pwm_override, msg.drive_pwm_percent = True, pwm
+    node.on_command(msg)
+    advance(env, node, 100.03)
+    assert packets(env) == [b'V015', b'X']
+
+
+def test_stop_cancels_pending_direction_and_steers(env):
+    node = env.make()
+    node.on_command(command())
+    node.on_command(command(0, 3041))
+    for now in (100.03, 100.06, 100.17, 100.24, 100.27):
+        advance(env, node, now)
+    assert packets(env) == [b'V015', b'X', b'T3041', b'T3041', b'X', b'T3041']
+    assert b'W' not in packets(env) and b'S' not in packets(env)
+    advance(env, node, 100.51)
+    assert packets(env)[-1] == b'X'
+    advance(env, node, 100.54)
+    assert packets(env)[-1] == b'X'
+
+
+def test_new_pwm_replaces_pending_transaction(env):
+    node = env.make()
+    node.on_command(command())
+    msg = command(2)
+    msg.use_pwm_override, msg.drive_pwm_percent = True, 5
+    node.on_command(msg)
+    advance(env, node, 100.03)
+    advance(env, node, 100.06)
+    assert packets(env) == [b'V015', b'V005', b'S']
+
+
+@pytest.mark.parametrize('source', ['lane', 'mission'])
+@pytest.mark.parametrize('pwm', [5, 10, 15, 20])
+def test_manual_timeout_to_autonomous_full_pipeline(env, source, pwm):
+    from fma_control.command_arbiter_node import CommandArbiterNode
+    from fma_control.keyboard_teleop_node import TeleopState
+    from fma_interfaces.msg import DriveCommand
+    from fma_vehicle.vehicle_controller_node import VehicleControllerNode
+
+    node = env.make()
+    arbiter = CommandArbiterNode()
+    controller = VehicleControllerNode()
+    arbiter.publisher = MagicMock()
+    controller.publisher = MagicMock()
+
+    def route():
+        arbiter.publish_output()
+        controller.on_command(arbiter.publisher.publish.call_args.args[0])
+        result = controller.publisher.publish.call_args.args[0]
+        node.on_command(result)
+        return result
+
+    state = TeleopState()
+    state.handle_key('a')
+    msg = DriveCommand(speed_mps=state.speed_mps, steering_angle_rad=state.steering,
+                       use_pwm_override=True, drive_pwm_percent=state.pwm_percent)
+    arbiter.on_manual(msg)
+    stopped = route()
+    assert stopped.drive_state == 0 and stopped.steering_adc > 2132
+    advance(env, node, 100.03)
+    assert packets(env) == [b'X', f'T{stopped.steering_adc:04d}'.encode()]
+
+    env.now[0] = 100.06
+    msg.speed_mps, msg.drive_pwm_percent = .2, pwm
+    arbiter.on_manual(msg)
+    route()
+    advance(env, node, 100.09)
+    assert packets(env)[-2:] == [f'V{pwm:03d}'.encode(), b'W']
+    env.now[0] = 100.4
+    getattr(arbiter, 'on_' + source)(DriveCommand(speed_mps=.2))
+    env.now[0] = 100.56  # exact manual timeout, autonomous is still fresh
+    result = route()
+    assert not result.use_pwm_override
+    advance(env, node, 100.59)
+    assert packets(env)[-2:] == [b'V015', b'W']

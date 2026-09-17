@@ -26,12 +26,16 @@ typedef enum
 
 static uint16_t steering_target = STEERING_CENTER;
 static drive_state_t drive_state = DRIVE_STOP;
+static uint8_t drive_pwm_percent = 15U;
+static uint16_t drive_pwm_compare = DRIVE_PWM;
+/* A rejected PWM transaction must not let its trailing W/S start traction. */
+static uint8_t drive_pwm_ready = 1U;
 volatile uint32_t g_millis = 0U;
 static uint32_t last_drive_command_ms = 0U;
 static uint32_t last_steering_command_ms = 0U;
 static uint8_t steering_active = 0U;
 static int32_t current_speed_mm_s = 0;
-typedef enum { PARSER_IDLE, PARSER_STEERING } parser_state_t;
+typedef enum { PARSER_IDLE, PARSER_STEERING, PARSER_PWM } parser_state_t;
 static parser_state_t parser_state = PARSER_IDLE;
 static uint32_t steering_packet_last_ms = 0U;
 static uint8_t steering_packet_digits = 0U;
@@ -331,14 +335,14 @@ static void drive_set(drive_state_t state)
   if (state == DRIVE_FORWARD)
   {
     GPIOB->BSRR = GPIO_BSRR_BR5 | GPIO_BSRR_BR10; /* DIR LOW */
-    TIM2->CCR2 = DRIVE_PWM;
-    TIM3->CCR1 = DRIVE_PWM;
+    TIM2->CCR2 = drive_pwm_compare;
+    TIM3->CCR1 = drive_pwm_compare;
   }
   else if (state == DRIVE_REVERSE)
   {
     GPIOB->BSRR = GPIO_BSRR_BS5 | GPIO_BSRR_BS10; /* DIR HIGH */
-    TIM2->CCR2 = DRIVE_PWM;
-    TIM3->CCR1 = DRIVE_PWM;
+    TIM2->CCR2 = drive_pwm_compare;
+    TIM3->CCR1 = drive_pwm_compare;
   }
   drive_state = state;
 }
@@ -386,12 +390,15 @@ static void command_fail_safe(void)
   TIM3->EGR = TIM_EGR_UG;
   drive_state = DRIVE_STOP;
   steering_active = 0U;
+  drive_pwm_percent = 15U;
+  drive_pwm_compare = DRIVE_PWM;
+  drive_pwm_ready = 0U;
   parser_reset();
 }
 
 static int parser_check_timeout(uint32_t now_ms)
 {
-  if ((parser_state == PARSER_STEERING) &&
+  if ((parser_state != PARSER_IDLE) &&
       ((uint32_t)(now_ms - steering_packet_last_ms) >= STEERING_PACKET_TIMEOUT_MS))
   {
     command_fail_safe();
@@ -410,10 +417,12 @@ static void command_process(char command)
   switch (command)
   {
     case 'W':
+      if (drive_pwm_ready == 0U) break;
       drive_set(DRIVE_FORWARD);
       last_drive_command_ms = g_millis;
       break;
     case 'S':
+      if (drive_pwm_ready == 0U) break;
       drive_set(DRIVE_REVERSE);
       last_drive_command_ms = g_millis;
       break;
@@ -440,6 +449,7 @@ static void command_process(char command)
     case 'X':
     case ' ':
       command_fail_safe();
+      drive_pwm_ready = 1U; /* explicit STOP restores legacy W/S default */
       break;
     case 'P':
       uart2_print("ENC=");
@@ -455,6 +465,7 @@ static void command_process(char command)
       break;
     case 'Q':
       command_fail_safe();
+      drive_pwm_ready = 1U;
       break;
     default:
       return;
@@ -467,14 +478,15 @@ static void uart2_process_byte(char value, uint32_t received_ms)
 {
   if ((value == 'X') || (value == 'x'))
   {
-    command_fail_safe(); /* preempts a partial T packet, even at timeout */
+    command_fail_safe(); /* preempts a partial T/V packet, even at timeout */
+    drive_pwm_ready = 1U; /* explicit X restores legacy W/S default */
     return;
   }
   if (parser_check_timeout(received_ms) != 0)
   {
     return; /* discard the byte following an expired partial packet */
   }
-  if (parser_state == PARSER_STEERING)
+  if (parser_state != PARSER_IDLE)
   {
     if ((value < '0') || (value > '9'))
     {
@@ -484,7 +496,28 @@ static void uart2_process_byte(char value, uint32_t received_ms)
     steering_packet_last_ms = received_ms;
     steering_packet_value = (uint16_t)(steering_packet_value * 10U + (value - '0'));
     steering_packet_digits++;
-    if (steering_packet_digits == 4U)
+    if ((parser_state == PARSER_PWM) && (steering_packet_digits == 3U))
+    {
+      if (steering_packet_value <= 100U)
+      {
+        drive_pwm_percent = (uint8_t)steering_packet_value;
+        drive_pwm_compare = (uint16_t)(((PWM_PERIOD + 1U) * drive_pwm_percent) / 100U);
+        if (drive_state != DRIVE_STOP)
+        {
+          /* Update duty without toggling direction or interrupting each refresh. */
+          TIM2->CCR2 = drive_pwm_compare;
+          TIM3->CCR1 = drive_pwm_compare;
+        }
+        drive_pwm_ready = 1U;
+        parser_reset(); /* V alone never starts stopped traction. */
+      }
+      else
+      {
+        command_fail_safe();
+      }
+      return;
+    }
+    if ((parser_state == PARSER_STEERING) && (steering_packet_digits == 4U))
     {
       if ((steering_packet_value >= STEERING_RIGHT_TARGET) &&
           (steering_packet_value <= STEERING_LEFT_TARGET))
@@ -503,6 +536,17 @@ static void uart2_process_byte(char value, uint32_t received_ms)
   }
   if ((value >= '0') && (value <= '9'))
   {
+    return;
+  }
+  if ((value == 'V') || (value == 'v'))
+  {
+    /* Stage duty; preserve the current output until validated. Malformed or
+       incomplete input invokes the same 50 ms fail-safe as a T packet. */
+    drive_pwm_ready = 0U;
+    parser_state = PARSER_PWM;
+    steering_packet_digits = 0U;
+    steering_packet_value = 0U;
+    steering_packet_last_ms = received_ms;
     return;
   }
   if ((value == 'T') || (value == 't'))

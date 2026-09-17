@@ -9,8 +9,16 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/config', ['config/waypoints.yaml']),
-        ('share/' + package_name + '/launch', ['launch/mission.launch.py']),
+        ('share/' + package_name + '/config', [
+            'config/waypoints.yaml',
+            'config/competition_route.yaml',
+            'config/school_dense_route.yaml',
+            'config/test_cheong.yaml',
+        ]),
+        ('share/' + package_name + '/launch', [
+            'launch/mission.launch.py',
+            'launch/school_dense.launch.py',
+        ]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

@@ -222,3 +222,27 @@ def test_node_invalid_angle_parameters(node_factory, parameters):
     node.on_command(request(angle=0.1405))
     assert_stop(output(node))
     assert node.last_valid_command is None
+
+
+@pytest.mark.parametrize('pwm', [0, 5, 10, 15, 20, 100])
+def test_pwm_override_forwarding(node_factory, pwm):
+    node = node_factory.make()
+    msg = request(.2, .1405)
+    msg.use_pwm_override, msg.drive_pwm_percent = True, pwm
+    node.on_command(msg)
+    result = output(node)
+    assert result.use_pwm_override and result.drive_pwm_percent == pwm
+    assert result.drive_state == 1 and result.steering_adc == 3041
+    node.on_command(request())
+    assert not output(node).use_pwm_override and output(node).drive_pwm_percent == 0
+
+
+@pytest.mark.parametrize('pwm', [101, 255])
+def test_invalid_pwm_safe_stop(node_factory, pwm):
+    node = node_factory.make()
+    msg = request()
+    msg.use_pwm_override, msg.drive_pwm_percent = True, pwm
+    node.on_command(msg)
+    assert_stop(output(node))
+    assert not output(node).use_pwm_override
+    assert node.last_valid_command is None

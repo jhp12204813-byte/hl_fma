@@ -110,13 +110,16 @@ class VehicleControllerNode(Node):
             'Speed magnitude is ignored: +0.2 and +1.0 m/s both request FORWARD. '
             'Numeric speed control is unavailable.')
 
-    def publish_command(self, drive_state, steering_adc, emergency_stop):
+    def publish_command(self, drive_state, steering_adc, emergency_stop,
+                        use_pwm_override=False, drive_pwm_percent=0):
         output = VehicleCommand()
         output.header.stamp = self.get_clock().now().to_msg()
         output.header.frame_id = ''
         output.drive_state = drive_state
         output.steering_adc = steering_adc
         output.emergency_stop = emergency_stop
+        output.use_pwm_override = use_pwm_override
+        output.drive_pwm_percent = drive_pwm_percent
         self.publisher.publish(output)
 
     def publish_safe_stop(self):
@@ -131,6 +134,8 @@ class VehicleControllerNode(Node):
             self.publish_safe_stop()
             return
         try:
+            if command.use_pwm_override and not 0 <= command.drive_pwm_percent <= 100:
+                raise ValueError('PWM override must be 0..100 percent')
             state = speed_to_drive_state(command.speed_mps, self.config.speed_deadband_mps)
             adc = steering_angle_to_adc(command.steering_angle_rad, self.config)
         except ValueError as error:
@@ -141,7 +146,8 @@ class VehicleControllerNode(Node):
             self.publish_safe_stop()
             return
         self.last_valid_command = time.monotonic()
-        self.publish_command(state, adc, False)
+        self.publish_command(state, adc, False, command.use_pwm_override,
+                             command.drive_pwm_percent if command.use_pwm_override else 0)
 
     def check_timeout(self):
         if (self.last_valid_command is None

@@ -15,7 +15,11 @@ from sensor_msgs.msg import NavSatFix
 from std_msgs.msg import String
 
 from fma_mission.control_mode import control_mode_for_mission
-from fma_mission.waypoint_progress import WaypointProgress, load_waypoints
+from fma_mission.waypoint_progress import (
+    DenseRouteProgress,
+    WaypointProgress,
+    load_waypoints,
+)
 
 
 class MissionManagerNode(Node):
@@ -24,7 +28,20 @@ class MissionManagerNode(Node):
         default = Path(get_package_share_directory('fma_mission')) / 'config' / 'waypoints.yaml'
         path = self.declare_parameter('waypoints_file', str(default),
                                       ParameterDescriptor(read_only=True)).value
-        self.progress = WaypointProgress(load_waypoints(path))
+
+        waypoints = load_waypoints(path)
+        self.dense_route = bool(
+            waypoints
+            and waypoints[0].id == 'P001'
+            and waypoints[0].role == 'dense_route'
+        )
+
+        self.progress = (
+            DenseRouteProgress(waypoints)
+            if self.dense_route
+            else WaypointProgress(waypoints)
+        )
+
         self.last_log = -float('inf')
         self.control_mode = None
         self.last_reported_mission = None
@@ -37,12 +54,25 @@ class MissionManagerNode(Node):
         self.publisher = self.create_publisher(
             MissionState, '/mission/current',
             QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        self.target_publisher = self.create_publisher(
+            String, '/mission/target_waypoint',
+            QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.gps_subscription = self.create_subscription(
             NavSatFix, '/gps/fix', self.on_gps, qos_profile_sensor_data)
         self.status_subscription = self.create_subscription(
             MissionState, '/mission/status', self.on_status, 10)
         self.feedback_subscription = self.create_subscription(
             String, '/mission/feedback', self.on_feedback, 10)
+
+        self.route_progress_subscription = None
+        if self.dense_route:
+            self.route_progress_subscription = self.create_subscription(
+                String,
+                '/mission/route_progress',
+                self.on_route_progress,
+                10,
+            )
+
         self.timer = self.create_timer(.5, self.tick, clock=Clock(clock_type=ClockType.STEADY_TIME))
         self.publish_state()  # START, then NORMAL_DRIVE on the first timer tick.
 
@@ -59,7 +89,33 @@ class MissionManagerNode(Node):
             self.proceed_at = None
             self.feedback_context = context
         proceed = self.proceed_at is not None and time.monotonic() - self.proceed_at < 1.5
-        mode = control_mode_for_mission(self.progress.state, self.progress.phase, proceed=proceed)
+
+        normal_drive_mode = 'LANE'
+        if not self.progress.legacy and self.progress.state == 'NORMAL_DRIVE':
+            target = self.progress.target
+            if target.waypoint_type == 'route':
+                normal_drive_mode = target.recommended_control_mode
+
+        mode = control_mode_for_mission(
+            self.progress.state,
+            self.progress.phase,
+            proceed=proceed,
+            normal_drive_mode=normal_drive_mode)
+
+        # Dense competition/school routes use GPS as the primary
+        # driving controller. Lane perception is used by lane_guard
+        # only as a lane-departure correction.
+        #
+        # Obstacle missions remain owned by their mission controller.
+        if (
+            self.dense_route
+            and self.progress.state in (
+                'NORMAL_DRIVE',
+                'INTERSECTION_STRAIGHT_1',
+                'RAMP',
+            )
+        ):
+            mode = 'GPS'
         if mode != self.control_mode:
             self.get_logger().info(
                 f'CONTROL MODE {self.control_mode or "INITIAL"} -> {mode} '
@@ -87,6 +143,15 @@ class MissionManagerNode(Node):
                 reason = 'coordinate unavailable, skipped' if waypoint.number == 57 else event
                 self.get_logger().info(f'WAYPOINT number={waypoint.number} id={waypoint.id} {reason}')
             self.progress.events.clear()
+        target = self.progress.target
+        self.target_publisher.publish(String(data=json.dumps({
+            'number': target.number,
+            'id': target.id,
+            'latitude': target.latitude,
+            'longitude': target.longitude,
+            'activation_radius_m': target.activation_radius_m,
+            'hard_point': target.hard_point,
+        }, separators=(',', ':'))))
         self.control_mode_publisher.publish(String(data=mode))
 
     def tick(self):
@@ -96,6 +161,49 @@ class MissionManagerNode(Node):
     def on_gps(self, msg):
         distance = self.progress.gps(msg.latitude, msg.longitude, msg.status.status in (0, 1, 2))
         if distance is not None:
+            self.publish_state()
+
+    def on_route_progress(self, msg):
+        if not self.dense_route:
+            return
+
+        try:
+            data = json.loads(msg.data)
+
+            if not isinstance(data, dict):
+                raise ValueError('route progress must be JSON object')
+
+            required = {
+                'segment_index',
+                'progress_s_m',
+                'total_length_m',
+                'finished',
+            }
+
+            if not required.issubset(data):
+                raise ValueError(
+                    'route progress fields missing'
+                )
+
+            changed = self.progress.route_progress(
+                segment_index=data['segment_index'],
+                progress_s_m=data['progress_s_m'],
+                total_length_m=data['total_length_m'],
+                finished=data['finished'],
+            )
+
+        except (
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ValueError,
+        ):
+            self.get_logger().warning(
+                'Invalid dense route progress ignored'
+            )
+            return
+
+        if changed:
             self.publish_state()
 
     def on_status(self, msg):

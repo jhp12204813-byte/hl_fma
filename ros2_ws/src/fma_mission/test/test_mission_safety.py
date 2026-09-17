@@ -6,7 +6,7 @@ from builtin_interfaces.msg import Time
 from fma_interfaces.msg import DriveCommand
 from rclpy.clock import ClockType
 from rclpy.qos import DurabilityPolicy, ReliabilityPolicy
-from std_msgs.msg import String
+from std_msgs.msg import Bool, String
 
 from fma_mission import mission_safety_node as safety
 
@@ -39,6 +39,7 @@ def test_startup_topics_qos_timer(env):
     assert publisher.call_args.args == (DriveCommand, '/cmd/mission', 1)
     assert subscription.call_args_list[0].args[:2] == (String, '/mission/control_mode')
     assert subscription.call_args_list[1].args[:2] == (String, '/mission/controller_ready')
+    assert subscription.call_args_list[2].args[:2] == (Bool, '/gps/healthy')
     qos = subscription.call_args_list[0].args[3]
     assert qos.depth == 1 and qos.durability == DurabilityPolicy.TRANSIENT_LOCAL
     assert qos.reliability == ReliabilityPolicy.RELIABLE
@@ -86,7 +87,7 @@ def test_unknown_mode_fails_closed(env):
     assert_stop(node)
 
 
-@pytest.mark.parametrize('mode', ['GPS', 'OBSTACLE', 'REVERSE'])
+@pytest.mark.parametrize('mode', ['OBSTACLE', 'REVERSE'])
 def test_controller_readiness_fail_safe_and_expiry(env, mode):
     node, now, *_ = env
     node.on_mode(String(data=mode))
@@ -108,6 +109,40 @@ def test_controller_readiness_fail_safe_and_expiry(env, mode):
     node.on_mode(String(data=mode))
     assert_stop(node)  # Readiness cannot survive mode re-entry.
     node.on_ready(String(data='bad'))
+    assert_stop(node)
+
+
+def test_gps_requires_controller_ready_and_fresh_health(env):
+    node, now, *_ = env
+
+    node.on_mode(String(data='GPS'))
+    assert_stop(node)
+
+    # Controller heartbeat alone must not release GPS mode.
+    node.on_ready(String(data='GPS'))
+    assert_stop(node)
+
+    # Fresh healthy GPS + fresh controller heartbeat releases STOP.
+    node.publisher.publish.reset_mock()
+    node.on_gps_health(Bool(data=True))
+    node.publisher.publish.assert_not_called()
+
+    # Explicit unhealthy GPS must fail closed immediately.
+    node.on_gps_health(Bool(data=False))
+    assert_stop(node)
+
+    # Recover both heartbeats.
+    node.publisher.publish.reset_mock()
+    node.on_gps_health(Bool(data=True))
+    node.on_ready(String(data='GPS'))
+    node.publisher.publish.assert_not_called()
+
+    # GPS health is a heartbeat too; stale health must fail closed.
+    now[0] = 1.5
+    node.on_mode(String(data='GPS'))
+    node.on_ready(String(data='GPS'))
+    node.publisher.publish.reset_mock()
+    node.publish_stop()
     assert_stop(node)
 
 

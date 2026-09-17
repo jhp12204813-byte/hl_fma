@@ -1,8 +1,7 @@
-"""Bridge for the current polling STM32 protocol, without numeric speed control.
+"""Serialized STM32 Vddd/W/S/X/Tdddd bridge with receive-time safety.
 
-All parameters are startup-only. receive_only suppresses EVERY write, including
-shutdown/error STOPs. TX spacing reduces polling-UART overruns but cannot provide
-an acknowledgement or delivery guarantee with this firmware.
+Parameters are startup-only. receive_only suppresses every write.
+Each independent packet has >=20 ms spacing; firmware RX uses an IRQ ring.
 """
 
 import math
@@ -69,6 +68,8 @@ class STM32BridgeNode(Node):
         self.drive = b'X'
         self.steering = None
         self.safe_stop = True
+        self.pwm_percent = 15
+        self.pending_drive = False
         self.next_drive = self.next_steering = self.next_tx = 0.0
         self.was_stopped = False
         self.warning_times = {}
@@ -112,22 +113,31 @@ class STM32BridgeNode(Node):
             self.warning_times[key] = now
 
     def on_command(self, msg):
+        previous = (self.safe_stop, self.drive, self.pwm_percent)
+        previous_steering = self.steering
         self.safe_stop = True
         self.drive, self.steering = b'X', None
-        # Emergency overrides even invalid fields; never retain a motion target.
         if not msg.emergency_stop:
             if msg.drive_state not in DRIVE_PACKETS:
                 self.warn('command', 'Invalid drive state; forcing STOP')
             elif not STEERING_MIN_ADC <= msg.steering_adc <= STEERING_MAX_ADC:
                 self.warn('command', 'Steering ADC outside 150..3950; forcing STOP')
+            elif msg.use_pwm_override and not 0 <= msg.drive_pwm_percent <= 100:
+                self.warn('command', 'Invalid PWM override; forcing STOP')
             else:
                 self.last_command = time.monotonic()
                 self.drive = DRIVE_PACKETS[msg.drive_state]
-                self.safe_stop = self.drive == b'X'
-                if not self.safe_stop:
-                    self.steering = msg.steering_adc
-        if self.safe_stop:
+                self.steering = msg.steering_adc
+                self.pwm_percent = msg.drive_pwm_percent if msg.use_pwm_override else 15
+                self.safe_stop = False
+        changed = previous != (self.safe_stop, self.drive, self.pwm_percent)
+        if changed or self.safe_stop:
+            self.pending_drive = False
             self.next_drive = 0.0
+        if self.steering != previous_steering:
+            self.next_steering = 0.0
+            if self.drive == b'X':
+                self.next_drive = 0.0  # X must precede a new stationary steering target.
         self.transmit(time.monotonic())
 
     def transmit(self, now):
@@ -135,16 +145,33 @@ class STM32BridgeNode(Node):
             return
         stale = (self.last_command is None or
                  now - self.last_command >= self.config['vehicle_command_timeout_sec'])
-        stopped = self.safe_stop or stale
-        if stopped and not self.was_stopped:
+        failed = self.safe_stop or stale
+        if failed and not self.was_stopped:
             self.next_drive = 0.0
-        self.was_stopped = stopped
+        self.was_stopped = failed
+        if failed:
+            self.pending_drive = False
         if now < self.next_tx:
             return
-        if now >= self.next_drive:
-            self.write(b'X' if stopped else self.drive)
+        if failed:
+            if now >= self.next_drive:
+                self.write(b'X')
+                self.next_drive = time.monotonic() + self.drive_period
+            return
+        if self.pending_drive:
+            # Only the latest desired direction may follow the matching V packet.
+            self.pending_drive = False
+            self.write(self.drive)
             self.next_drive = time.monotonic() + self.drive_period
-        elif not stopped and now >= self.next_steering:
+        elif now >= self.next_drive:
+            if self.drive == b'X':
+                self.write(b'X')
+                self.next_drive = time.monotonic() + self.drive_period
+                self.next_steering = 0.0  # X also stops steering in firmware.
+            else:
+                self.write(f'V{self.pwm_percent:03d}'.encode('ascii'))
+                self.pending_drive = self.connected
+        elif now >= self.next_steering:
             self.write(f'T{self.steering:04d}'.encode('ascii'))
             self.next_steering = time.monotonic() + self.steering_period
 
@@ -152,7 +179,7 @@ class STM32BridgeNode(Node):
         try:
             if self.serial.write(packet) != len(packet):
                 raise serial.SerialException('partial serial write')
-            # Allow firmware blocking reply/direction-change delay to finish.
+            # Allow the direction-change delay to finish; no concatenated packets.
             self.next_tx = time.monotonic() + 0.02
         except (serial.SerialException, OSError) as error:
             self.serial_failed(error)
@@ -215,7 +242,7 @@ class STM32BridgeNode(Node):
             return
         try:
             if port.is_open and not self.config['receive_only']:
-                # A first X may only abort an incomplete T packet in firmware.
+                # X preempts partial T/V packets; repeat as best-effort shutdown STOP.
                 for _ in range(2):
                     time.sleep(0.02)
                     try:

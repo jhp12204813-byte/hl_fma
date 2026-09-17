@@ -84,7 +84,7 @@ The following rules are fixed:
    from `/cmd/final` (`DriveCommand`) into `drive_state` and `steering_adc`
    on `/vehicle/command` (`VehicleCommand`).
 7. `stm32_bridge_node` translates `VehicleCommand` into the STM32 serial
-   protocol `W`/`S`/`X`/`Tdddd`; it does not own physical-unit conversion.
+   protocol `Vddd`/`W`/`S`/`X`/`Tdddd`; it does not own physical-unit conversion.
 8. Lane detection and mission decisions must not be placed inside
    `stm32_bridge`.
 9. Fresh valid manual commands have highest priority; emergency is next.
@@ -174,19 +174,26 @@ the 0.001 rad center tolerance. Finite angles beyond these endpoints clamp to
 150/3950; NaN/Inf, invalid calibration, emergency and timeout retain fail-safe STOP.
 Explicitly disabling calibration still rejects nonzero angles outside center tolerance.
 At zero speed the controller publishes DRIVE_STOP with the calculated ADC;
-the bridge continues to suppress steering TX during STOP.
-Topics, message definitions, serial packet shape and raw telemetry are unchanged.
+the bridge sends X followed by Tdddd, keeping traction stopped.
+Steering calibration and raw telemetry are unchanged.
 
-Current firmware has no numeric speed command. `VehicleCommand` contains neither
-physical speed/angle targets nor PWM/motor-percentage fields; conversion from
+Current firmware has no numeric speed command. `VehicleCommand` contains optional `use_pwm_override` (default false) and
+`drive_pwm_percent` (0..100) fields, also present in `DriveCommand`; conversion from
 the high-level `DriveCommand` remains `vehicle_controller`'s responsibility.
 
 The implemented bridge consumes `/vehicle/command` and publishes
 `/vehicle/feedback`. It validates drive state and steering ADC range, and sends
-only `X` for STOP, emergency, invalid input, or stale input. Its independent
+`X` then `Tdddd` for a valid STOP steering target. Emergency, invalid input,
+and stale input send only `X`. Its independent
 `vehicle_command_timeout_sec` defaults to 0.5 seconds since the last valid
 non-emergency command; startup also remains STOP. Drive and steering refreshes
-share one serial TX path, with one command per write and no steering during STOP.
+share one serial TX path with at least 20 ms between packets. Motion sends
+`Vddd` then W/S; pending direction is cancelled on STOP, invalid input or timeout.
+Only the selected manual source can forward PWM override through the arbiter.
+Without override, the bridge restores `V015` (15%), including autonomous fallback
+following manual expiry. Keyboard starts STOP/0%, steps by 5% up to 20% by default,
+and requires STOP/0% before reversing. PWM is distinct from measured km/h.
+All command publishers/subscribers must rebuild and restart for the expanded messages.
 
 ## 7. Perception, localization, and mission interaction
 
@@ -310,3 +317,31 @@ The following items remain TBD and must not be inferred by node implementations:
 - Depth-image encoding and scale
 - Confidence-field semantics
 - Final QoS tuning
+
+## D435i lane following and C920 signal perception
+
+Front D435i RGB on /front/color/image_raw supplies lane_detector and future
+stopline detection. /front/depth/image_raw is reserved for future stopline
+distance and obstacles; current lane detection does not subscribe to depth.
+The RealSense ROS driver owns capture and is remapped to these canonical topics.
+No direct D435i VideoCapture is used. C920 retains /dev/fma_c920 and
+/camera/front/image_raw for future traffic lights and signal cars, not lanes.
+
+lane_detector uses normalized lower ROI, HSV white/yellow masks, noise filtering,
+left/right line fitting and a lookahead center. It publishes /perception/lane and
+/perception/lane/debug_image. Physical output requires measured lane_width_m and
+longitudinal scale; missing calibration disables detected and zeros metric errors.
+A calibrated optional single-side estimate has reduced confidence.
+
+lane_controller subscribes to /perception/lane and publishes /cmd/lane.
+It defaults to enabled=false. When explicitly enabled, P control combines lateral
+and heading errors with positive LEFT sign, clamped to -0.3054..+0.2810 rad.
+Missing/invalid/low-confidence/stale input produces zero speed and steering with
+emergency_stop=false; the default receive-time monotonic timeout is 0.5 seconds.
+A 20 Hz steady timer reevaluates input. Forward +0.2 is a direction request,
+not a regulated speed; autonomous commands retain the default 120/800 = 15% drive PWM.
+
+MANUAL > EMERGENCY > MISSION > LANE remains unchanged. Keyboard and lane commands
+use /cmd/manual and /cmd/lane respectively. See the
+[perception README](../ros2_ws/src/fma_perception/README_KO.md) and
+[control README](../ros2_ws/src/fma_control/README_KO.md) for parameters and assumptions.

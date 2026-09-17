@@ -7,6 +7,7 @@ import pytest
 from builtin_interfaces.msg import Time
 from fma_interfaces.msg import DriveCommand
 from rclpy.clock import ClockType
+from std_msgs.msg import String
 
 from fma_control import command_arbiter_node as arbiter
 from fma_control.command_arbiter_node import Candidate, candidate_is_valid, select_source
@@ -87,9 +88,14 @@ def test_node_contract_and_timer(env):
     node = env.make()
     assert env.names == ['command_arbiter']
     assert env.publisher.call_args.args == (DriveCommand, '/cmd/final', 1)
-    assert [(c.args[0], c.args[1], c.args[3]) for c in env.subscriber.call_args_list] == [
-        (DriveCommand, '/cmd/lane', 1), (DriveCommand, '/cmd/mission', 1),
-        (DriveCommand, '/cmd/manual', 1), (DriveCommand, '/cmd/emergency', 1)]
+    calls = env.subscriber.call_args_list
+    assert [(c.args[0], c.args[1], c.args[3]) for c in calls[:5]] == [
+        (DriveCommand, '/cmd/lane', 1),
+        (DriveCommand, '/cmd/mission', 1),
+        (DriveCommand, '/cmd/gps', 1),
+        (DriveCommand, '/cmd/manual', 1),
+        (DriveCommand, '/cmd/emergency', 1)]
+    assert calls[5].args[:2] == (String, '/mission/control_mode')
     assert env.timer.call_args.args == (.05, node.publish_output)
     assert env.timer.call_args.kwargs['clock'].clock_type == ClockType.STEADY_TIME
     assert all(d.read_only for d in env.descriptors.values())
@@ -106,12 +112,22 @@ def test_node_contract_and_timer(env):
 
 
 def test_parameter_overrides(env):
-    node = env.make(lane_topic='/test/lane', mission_topic='/test/mission',
-                    emergency_topic='/test/emergency', final_topic='/test/final',
-                    manual_topic='/test/manual', manual_timeout_sec=.125,
-                    output_rate_hz=10., lane_timeout_sec=.25, mission_timeout_sec=1.)
+    node = env.make(
+        lane_topic='/test/lane',
+        mission_topic='/test/mission',
+        gps_topic='/test/gps',
+        control_mode_topic='/test/mode',
+        emergency_topic='/test/emergency',
+        final_topic='/test/final',
+        manual_topic='/test/manual',
+        manual_timeout_sec=.125,
+        gps_timeout_sec=.25,
+        output_rate_hz=10.,
+        lane_timeout_sec=.25,
+        mission_timeout_sec=1.)
     assert [c.args[1] for c in env.subscriber.call_args_list] == [
-        '/test/lane', '/test/mission', '/test/manual', '/test/emergency']
+        '/test/lane', '/test/mission', '/test/gps',
+        '/test/manual', '/test/emergency', '/test/mode']
     assert env.publisher.call_args.args[1] == '/test/final'
     assert env.timer.call_args.args[0] == .1
     node.on_lane(command())
@@ -124,8 +140,9 @@ def test_parameter_overrides(env):
     assert_stop(output(node))
 
 
-@pytest.mark.parametrize('name', ['lane_timeout_sec', 'mission_timeout_sec', 'manual_timeout_sec',
-                                  'emergency_timeout_sec', 'output_rate_hz'])
+@pytest.mark.parametrize('name', ['lane_timeout_sec', 'mission_timeout_sec', 'gps_timeout_sec',
+                                  'manual_timeout_sec', 'emergency_timeout_sec',
+                                  'output_rate_hz'])
 @pytest.mark.parametrize('value', [0., -1., math.nan, math.inf])
 def test_invalid_parameters(env, name, value):
     with pytest.raises(ValueError):
@@ -156,6 +173,29 @@ def test_priority_latch_stale_and_explicit_release(env):
     # Emergency false never becomes a motion candidate itself.
     env.now[0] = 20.5
     assert_stop(output(node))
+
+
+def test_gps_selected_only_in_gps_mode_and_never_falls_back_to_lane(env):
+    node = env.make()
+
+    node.on_lane(command(1., .1))
+    node.on_gps(command(4., -.2))
+
+    node.on_control_mode(String(data='GPS'))
+    assert output(node).speed_mps == 4.
+
+    # At the GPS timeout boundary, fresh lane input must NOT take over GPS mode.
+    env.now[0] = 10.5
+    node.on_lane(command(1., .1))
+    assert_stop(output(node))
+
+    # A fresh GPS candidate restores GPS output.
+    node.on_gps(command(4., -.2))
+    assert output(node).speed_mps == 4.
+
+    # Switching to LANE immediately excludes the still-fresh GPS candidate.
+    node.on_control_mode(String(data='LANE'))
+    assert output(node).speed_mps == 1.
 
 
 def test_freshness_fallback_ignores_sender_and_output_clocks(env):
@@ -308,3 +348,24 @@ def test_manual_timeout_override_and_invalid_fallback(env):
     node.on_manual(command(3.))
     node.on_manual(command(angle=math.inf))
     assert output(node).speed_mps == 2.
+
+
+@pytest.mark.parametrize('source', ['lane', 'mission'])
+@pytest.mark.parametrize('pwm', [5, 10, 15, 20, 101])
+def test_manual_pwm_snapshot_and_timeout(env, source, pwm):
+    node = env.make()
+    msg = command(.2)
+    msg.use_pwm_override, msg.drive_pwm_percent = True, pwm
+    node.on_manual(msg)
+    msg.drive_pwm_percent = 99
+    result = output(node)
+    assert result.use_pwm_override and result.drive_pwm_percent == pwm
+    env.now[0] = 10.25
+    autonomous = command()
+    # Even an autonomous source explicitly requesting override cannot use it.
+    autonomous.use_pwm_override, autonomous.drive_pwm_percent = True, 20
+    getattr(node, 'on_' + source)(autonomous)
+    env.now[0] = 10.5
+    result = output(node)
+    assert not result.use_pwm_override and result.drive_pwm_percent == 0
+    assert result.speed_mps == 1.

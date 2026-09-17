@@ -14,6 +14,8 @@
   <exec_depend>fma_interfaces</exec_depend>
   <exec_depend>python3-serial</exec_depend>
 
+  <test_depend>fma_control</test_depend>
+
   <export>
     <build_type>ament_python</build_type>
   </export>

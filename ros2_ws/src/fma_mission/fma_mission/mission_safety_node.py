@@ -6,8 +6,8 @@ import rclpy
 from rclpy.clock import Clock, ClockType
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile
-from std_msgs.msg import String
+from rclpy.qos import DurabilityPolicy, QoSProfile, qos_profile_sensor_data
+from std_msgs.msg import Bool, String
 
 from fma_mission.control_mode import CONTROL_MODES
 
@@ -18,6 +18,8 @@ class MissionSafetyNode(Node):
         self.mode = 'STOP'
         self.last_mode_received = None
         self.ready_at = {}
+        self.gps_healthy = False
+        self.gps_health_at = None
         self.publisher = self.create_publisher(DriveCommand, '/cmd/mission', 1)
         self.subscription = self.create_subscription(
             String, '/mission/control_mode', self.on_mode,
@@ -25,6 +27,8 @@ class MissionSafetyNode(Node):
         # Volatile heartbeat: never accept a latched readiness from an old controller.
         self.ready_subscription = self.create_subscription(
             String, '/mission/controller_ready', self.on_ready, 10)
+        self.gps_health_subscription = self.create_subscription(
+            Bool, '/gps/healthy', self.on_gps_health, qos_profile_sensor_data)
         self.timer = self.create_timer(
             .05, self.publish_stop, clock=Clock(clock_type=ClockType.STEADY_TIME))
         self.publish_stop()
@@ -35,6 +39,11 @@ class MissionSafetyNode(Node):
         else:
             # STOP, unknown or wrong-mode heartbeats revoke readiness.
             self.ready_at.clear()
+        self.publish_stop()
+
+    def on_gps_health(self, msg):
+        self.gps_healthy = bool(msg.data)
+        self.gps_health_at = time.monotonic()
         self.publish_stop()
 
     def on_mode(self, msg):
@@ -53,12 +62,24 @@ class MissionSafetyNode(Node):
 
     def publish_stop(self):
         # Manager publishes at 2 Hz. Missing mode updates fail closed after 1.5 s.
+        now = time.monotonic()
         stale = (self.last_mode_received is None
-                 or time.monotonic() - self.last_mode_received >= 1.5)
+                 or now - self.last_mode_received >= 1.5)
         ready = (self.mode in self.ready_at
-                 and time.monotonic() - self.ready_at[self.mode] < .3)
-        if not stale and (self.mode == 'LANE' or (
-                self.mode in ('GPS', 'OBSTACLE', 'REVERSE') and ready)):
+                 and now - self.ready_at[self.mode] < .3)
+        gps_healthy = (
+            self.gps_healthy
+            and self.gps_health_at is not None
+            and now - self.gps_health_at < 1.5
+        )
+
+        allowed = (
+            self.mode == 'LANE'
+            or (self.mode == 'GPS' and ready and gps_healthy)
+            or (self.mode in ('OBSTACLE', 'REVERSE') and ready)
+        )
+
+        if not stale and allowed:
             return
         msg = DriveCommand()
         msg.header.stamp = self.get_clock().now().to_msg()

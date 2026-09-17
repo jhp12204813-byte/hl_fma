@@ -1,0 +1,6 @@
+<library path="d435i_recorder">
+ <class name="d435i_recorder.plugin.RecorderPlugin" type="d435i_recorder.plugin.RecorderPlugin" base_class_type="rqt_gui_py::Plugin">
+  <description>Record RGB, aligned depth and IMU independently.</description>
+  <qtgui><group><label>Robot Tools</label></group><label>D435i Recorder</label></qtgui>
+ </class>
+</library>

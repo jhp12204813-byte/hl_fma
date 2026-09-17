@@ -1,4 +1,5 @@
 """Offline course validation and mocked ROS callbacks; no hardware or DDS."""
+import json
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,9 +18,19 @@ CONFIG = Path(__file__).resolve().parents[1] / 'config' / 'waypoints.yaml'
 @pytest.fixture
 def node(monkeypatch):
     pub, sub, clock = MagicMock(), MagicMock(), MagicMock()
-    mission_publisher, mode_publisher = MagicMock(), MagicMock()
-    pub.side_effect = lambda msg_type, *args: (
-        mission_publisher if msg_type is MissionState else mode_publisher)
+    mission_publisher, mode_publisher, target_publisher = (
+        MagicMock(), MagicMock(), MagicMock())
+
+    def make_publisher(msg_type, topic, *args):
+        if topic == '/mission/current':
+            return mission_publisher
+        if topic == '/mission/control_mode':
+            return mode_publisher
+        if topic == '/mission/target_waypoint':
+            return target_publisher
+        raise AssertionError(f'unexpected publisher topic {topic}')
+
+    pub.side_effect = make_publisher
     clock.now.return_value.to_msg.return_value = Time(sec=123)
     monkeypatch.setattr(node_module.Node, '__init__', lambda self, name: None)
     monkeypatch.setattr(node_module, 'get_package_share_directory', lambda name: str(CONFIG.parent.parent))
@@ -32,7 +43,9 @@ def node(monkeypatch):
     monkeypatch.setattr(node_module.Node, 'get_logger', lambda self: MagicMock())
     n = node_module.MissionManagerNode()
     assert [c.args[:2] for c in pub.call_args_list] == [
-        (String, '/mission/control_mode'), (MissionState, '/mission/current')]
+        (String, '/mission/control_mode'),
+        (MissionState, '/mission/current'),
+        (String, '/mission/target_waypoint')]
     for call in pub.call_args_list:
         qos = call.args[2]
         assert qos.depth == 1 and qos.durability == DurabilityPolicy.TRANSIENT_LOCAL
@@ -56,6 +69,23 @@ def reach(node, number):
             return
         gps(node)
     pytest.fail('blocked')
+
+
+def test_target_waypoint_publication(node):
+    data = json.loads(node.target_publisher.publish.call_args.args[0].data)
+    assert data == {
+        'number': 1,
+        'id': 'ROUTE_001',
+        'latitude': 37.28893187,
+        'longitude': 127.10762589,
+        'activation_radius_m': 3.0,
+        'hard_point': True,
+    }
+
+    reach(node, 2)
+    data = json.loads(node.target_publisher.publish.call_args.args[0].data)
+    assert data['number'] == 2
+    assert data['id'] == 'ROUTE_002'
 
 
 def test_course_publications_atomic_transition_and_finish(node):
@@ -103,3 +133,23 @@ def test_feedback_permissions_expire_and_phase_matches_progress(node, monkeypatc
     assert node.progress.phase == 'REVERSE' and node.control_mode == 'REVERSE'
     node.on_feedback(String(data='{"mission":"PARALLEL_PARKING","phase":"APPROACH"}'))
     assert node.progress.phase == 'REVERSE'
+
+
+def test_route_gps_mode_and_mission_entry_approach_stays_lane(node):
+    # After parking exit, ordinary route waypoint 41 uses GPS.
+    reach(node, 41)
+    assert node.progress.state == 'NORMAL_DRIVE'
+    assert node.progress.target.number == 41
+    assert node.progress.target.waypoint_type == 'route'
+    assert node.control_mode == 'GPS'
+
+    # Route 50 is GPS too.
+    reach(node, 50)
+    assert node.control_mode == 'GPS'
+
+    # Mission entry 51 must remain LANE until the entry itself is reached.
+    reach(node, 51)
+    assert node.progress.state == 'NORMAL_DRIVE'
+    assert node.progress.target.number == 51
+    assert node.progress.target.waypoint_type == 'mission_entry'
+    assert node.control_mode == 'LANE'

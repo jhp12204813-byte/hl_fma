@@ -125,9 +125,20 @@ def test_invalid_yaml(tmp_path, old, new):
 @pytest.fixture
 def node(monkeypatch):
     pub, sub, clock = MagicMock(), MagicMock(), MagicMock()
-    mission_publisher, mode_publisher = MagicMock(), MagicMock()
-    pub.side_effect = lambda msg_type, *args: (
-        mission_publisher if msg_type is MissionState else mode_publisher)
+    mission_publisher = MagicMock()
+    mode_publisher = MagicMock()
+    target_publisher = MagicMock()
+
+    def publisher_for(msg_type, topic, *args):
+        if topic == '/mission/current':
+            return mission_publisher
+        if topic == '/mission/control_mode':
+            return mode_publisher
+        if topic == '/mission/target_waypoint':
+            return target_publisher
+        raise AssertionError(topic)
+
+    pub.side_effect = publisher_for
     clock.now.return_value.to_msg.return_value = Time(sec=123)
     monkeypatch.setattr(node_module.Node, '__init__', lambda self, name: None)
     monkeypatch.setattr(node_module, 'get_package_share_directory', lambda name: str(CONFIG.parents[2]))
@@ -140,7 +151,10 @@ def node(monkeypatch):
     monkeypatch.setattr(node_module.Node, 'get_logger', lambda self: MagicMock())
     n = node_module.MissionManagerNode()
     assert [c.args[:2] for c in pub.call_args_list] == [
-        (String, '/mission/control_mode'), (MissionState, '/mission/current')]
+        (String, '/mission/control_mode'),
+        (MissionState, '/mission/current'),
+        (String, '/mission/target_waypoint'),
+    ]
     for call in pub.call_args_list:
         qos = call.args[2]
         assert qos.depth == 1 and qos.durability == DurabilityPolicy.TRANSIENT_LOCAL

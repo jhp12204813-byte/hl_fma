@@ -18,6 +18,8 @@ setup(
     license='TODO',
     tests_require=['pytest'],
     entry_points={'console_scripts': [
+        'lane_controller = fma_control.lane_controller_node:main',
+            'lane_guard = fma_control.lane_guard_node:main',
         'keyboard_teleop = fma_control.keyboard_teleop_node:main',
         'command_arbiter = fma_control.command_arbiter_node:main',
     ]},
